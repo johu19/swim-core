@@ -6,6 +6,11 @@ import {
 } from 'aws-lambda';
 import { handler } from '../functions/health.js';
 
+process.env.AWS_REGION ??= 'us-east-1';
+process.env.AWS_ACCESS_KEY_ID ??= 'local';
+process.env.AWS_SECRET_ACCESS_KEY ??= 'local';
+process.env.DYNAMODB_ENDPOINT ??= 'http://localhost:8000';
+
 const typedHandler = handler as Handler<
   APIGatewayProxyEventV2,
   APIGatewayProxyResultV2

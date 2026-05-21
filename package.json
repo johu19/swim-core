@@ -12,6 +12,9 @@
     "dev:invoke:health": "node dist/scripts/invoke-health.js",
     "start": "npm run build && npm run dev:invoke:health"
   },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.821.0"
+  },
   "devDependencies": {
     "@types/aws-lambda": "^8.10.147",
     "@types/node": "^24.0.0",
