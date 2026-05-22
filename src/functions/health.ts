@@ -12,3 +12,4 @@ export const handler: APIGatewayProxyHandlerV2 = async () => {
     database,
   });
 };
+``

@@ -9,6 +9,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "clean": "rm -rf dist",
+    "create:table:transaction": "npm run build && node dist/scripts/create-transaction-table.js",
     "dev:invoke:health": "node dist/scripts/invoke-health.js",
     "start": "npm run build && npm run dev:invoke:health"
   },

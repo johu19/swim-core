@@ -58,6 +58,23 @@ AWS’s current Docker Compose example also uses that official `latest` tag for 
 - [Docker Hub image](https://hub.docker.com/r/amazon/dynamodb-local)
 - [DynamoDB admin image](https://hub.docker.com/r/gerardojunior/dynamodb-admin)
 
+## Create the transaction table
+
+To create the local DynamoDB table named `transaction`, run:
+
+```bash
+npm run create:table:transaction
+```
+
+The script uses:
+
+- table name: `transaction`
+- partition key: `pk` (`S`)
+- sort key: `sk` (`S`)
+- billing mode: `PAY_PER_REQUEST`
+
+It also prints the table description after creation, or tells you if the table already exists.
+
 ## Invoke locally
 
 ```bash
