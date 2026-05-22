@@ -1,0 +1,13 @@
+{
+  "method": "GET",
+  "path": "/health",
+  "headers": {
+    "content-type": "application/json"
+  },
+  "pathParameters": {},
+  "queryStringParameters": {},
+  "claims": {
+    "sub": "local-profile-123",
+    "email": "local.swimmer@example.com"
+  }
+}

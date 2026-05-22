@@ -8,8 +8,7 @@ export const handler: APIGatewayProxyHandlerV2 = async () => {
 
   return json(statusCode, {
     status: database.ok ? 'ok' : 'degraded',
-    service: 'finance-manager-api',
+    service: 'swim-core-api',
     database,
   });
 };
-``

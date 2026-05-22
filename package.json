@@ -1,17 +1,17 @@
 {
-  "name": "finance-manager",
+  "name": "swim-core",
   "version": "0.1.0",
   "private": true,
-  "description": "Lambda-first backend for a finance manager project.",
+  "description": "Lambda-first backend for the swim-core project.",
   "engines": {
     "node": "24.x"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "clean": "rm -rf dist",
-    "create:table:transaction": "npm run build && node dist/scripts/create-transaction-table.js",
-    "dev:invoke:health": "node dist/scripts/invoke-health.js",
-    "start": "npm run build && npm run dev:invoke:health"
+    "create:table:swim-core": "npm run build && node dist/scripts/create-swim-core-table.js",
+    "dev:invoke": "npm run --silent build && node dist/scripts/invoke-lambda.js",
+    "start": "npm run dev:invoke -- health"
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.821.0"

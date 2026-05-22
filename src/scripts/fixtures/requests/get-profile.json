@@ -1,0 +1,12 @@
+{
+  "method": "GET",
+  "path": "/profiles/me",
+  "headers": {
+    "content-type": "application/json"
+  },
+  "queryStringParameters": {},
+  "claims": {
+    "sub": "local-profile-123",
+    "email": "local.swimmer@example.com"
+  }
+}
