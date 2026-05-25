@@ -1,0 +1,25 @@
+{
+  "name": "swim-core",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Lambda-first backend for the swim-core project.",
+  "engines": {
+    "node": "24.x"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "clean": "rm -rf dist",
+    "create:table:swim-core": "npm run build && node dist/src/scripts/db/create-swim-core-table.js",
+    "dev:invoke": "npm run --silent build && node dist/src/scripts/lambda/invoke.js",
+    "test": "npm run --silent build && node --test \"dist/test/*.test.js\""
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.821.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.147",
+    "@types/node": "^24.0.0",
+    "typescript": "^5.8.2"
+  }
+}
