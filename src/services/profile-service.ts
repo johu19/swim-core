@@ -1,30 +1,16 @@
 import { ConditionalCheckFailedException } from '@aws-sdk/client-dynamodb';
+import { AppError, ErrorName } from '../lib/error-handler.js';
 import {
-  createProfile,
-  getProfile,
+  insertProfile,
+  getProfileById,
   ProfileRecord,
 } from '../repositories/profile-repository.js';
 import { CreateProfileInput } from '../validations/create-profile.js';
 
-export class ProfileAlreadyExistsError extends Error {
-  constructor(profileId: string) {
-    super(`Profile "${profileId}" already exists.`);
-  }
-}
-
-export class ProfileNotFoundError extends Error {
-  constructor(profileId: string) {
-    super(`Profile "${profileId}" was not found.`);
-  }
-}
-
-export async function createProfileForAuthenticatedUser(
-  profileId: string,
-  input: CreateProfileInput,
-) {
+export async function createProfile(input: CreateProfileInput) {
   const now = new Date().toISOString();
   const profile: ProfileRecord = {
-    profileId,
+    profileId: input.cognitoId,
     email: input.email,
     firstName: input.firstName,
     lastName: input.lastName,
@@ -35,22 +21,28 @@ export async function createProfileForAuthenticatedUser(
     updatedAt: now,
   };
 
-  try {
-    return await createProfile(profile);
-  } catch (error) {
-    if (error instanceof ConditionalCheckFailedException) {
-      throw new ProfileAlreadyExistsError(profileId);
-    }
+  const existingProfile = await getProfileById(input.cognitoId);
 
-    throw error;
+  if (existingProfile) {
+    throw new AppError(
+      ErrorName.ProfileAlreadyExists,
+      `Profile "${input.cognitoId}" already exists.`,
+      400,
+    );
   }
+
+  return await insertProfile(profile);
 }
 
-export async function getProfileForAuthenticatedUser(profileId: string) {
-  const profile = await getProfile(profileId);
+export async function getProfile(profileId: string) {
+  const profile = await getProfileById(profileId);
 
   if (!profile) {
-    throw new ProfileNotFoundError(profileId);
+    throw new AppError(
+      ErrorName.ProfileNotFound,
+      `Profile "${profileId}" was not found.`,
+      404,
+    );
   }
 
   return profile;

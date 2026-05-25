@@ -9,12 +9,13 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "clean": "rm -rf dist",
-    "create:table:swim-core": "npm run build && node dist/scripts/create-swim-core-table.js",
-    "dev:invoke": "npm run --silent build && node dist/scripts/invoke-lambda.js",
-    "start": "npm run dev:invoke -- health"
+    "create:table:swim-core": "npm run build && node dist/src/scripts/db/create-swim-core-table.js",
+    "dev:invoke": "npm run --silent build && node dist/src/scripts/lambda/invoke.js",
+    "test": "npm run --silent build && node --test \"dist/test/*.test.js\""
   },
   "dependencies": {
-    "@aws-sdk/client-dynamodb": "^3.821.0"
+    "@aws-sdk/client-dynamodb": "^3.821.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/aws-lambda": "^8.10.147",

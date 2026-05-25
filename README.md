@@ -1,8 +1,8 @@
 # swim-core Backend
 
-`swim-core` is a Lambda-first TypeScript backend for a swim app. The current MVP focuses on swimmer profiles backed by DynamoDB and modeled around authenticated users, with local scripts for DynamoDB startup and Lambda invocation.
+`swim-core` is a Lambda-first TypeScript backend for a swim app. The current MVP is focused on authenticated swimmer profiles stored in DynamoDB, with local DynamoDB startup, local Lambda invocation, a shared Lambda runner, Zod-based validation, and unit tests for the profile handlers.
 
-## Current capabilities
+## Current features
 
 Implemented Lambda handlers:
 
@@ -10,48 +10,31 @@ Implemented Lambda handlers:
 - `create-profile`
 - `get-profile`
 
-Current profile behavior:
+Current profile flow:
 
-- `create-profile` reads `profileId` from JWT claims (`claims.sub`)
-- validates the request body
-- generates `createdAt` and `updatedAt` in the service layer
-- writes the profile to DynamoDB with a conditional insert
-- `get-profile` also reads `profileId` from `claims.sub`
-- fetches the authenticated user profile from DynamoDB
+- authentication data is read from mocked or real Cognito-style JWT claims
+- the shared Lambda runner extracts auth, parses request data, validates inputs, and handles errors
+- `create-profile` validates the body with Zod and creates a profile for the authenticated user
+- `get-profile` fetches the authenticated user profile
 
-## Project structure
+## Architecture
 
-```text
-src/
-  functions/
-    health.ts
-    create-profile.ts
-    get-profile.ts
-  lib/
-    auth.ts
-    dynamo.ts
-    env.ts
-    http.ts
-  repositories/
-    profile-repository.ts
-  services/
-    profile-service.ts
-  validations/
-    create-profile.ts
-  scripts/
-    create-swim-core-table.ts
-    invoke-lambda.ts
-    fixtures/
-      requests/
-      bodies/
-```
+The current Lambda flow is intentionally layered:
 
-The profile flow is intentionally separated into layers:
+- `functions`: Lambda entrypoints and success responses
+- `lambda runner`: shared API Gateway wrapper
+- `validations`: Zod schemas and input types
+- `services`: business rules and orchestration
+- `repositories`: DynamoDB access
+- `error handler`: centralized error-to-response mapping
 
-- `function`: Lambda handler and HTTP response mapping
-- `validation`: request body parsing and validation
-- `service`: business logic like timestamp generation and domain errors
-- `repository`: DynamoDB read/write logic
+The shared runner is responsible for:
+
+- extracting Cognito auth claims
+- parsing body JSON
+- validating body, path, and query inputs with Zod
+- passing normalized inputs into the handler
+- catching errors and delegating to `handleError`
 
 ## Environment
 
@@ -71,15 +54,37 @@ SWIM_CORE_TABLE_NAME=swim-core
 npm install
 ```
 
-## Build
+## Scripts
+
+Build:
 
 ```bash
 npm run build
 ```
 
-## DynamoDB local
+Create the DynamoDB table manually:
 
-Docker Compose starts DynamoDB Local and a one-shot init container that creates the table automatically:
+```bash
+npm run create:table:swim-core
+```
+
+Invoke a Lambda locally:
+
+```bash
+npm run dev:invoke -- health
+npm run dev:invoke -- create-profile
+npm run dev:invoke -- get-profile
+```
+
+Run unit tests:
+
+```bash
+npm test
+```
+
+## Local DynamoDB
+
+Start DynamoDB Local with Docker Compose:
 
 ```bash
 docker compose up -d
@@ -91,35 +96,25 @@ DynamoDB Local is exposed at:
 http://localhost:8000
 ```
 
-The init service reads its base AWS settings from `.env` and overrides `DYNAMODB_ENDPOINT` internally to talk to the DynamoDB container over Docker networking.
+The `dynamodb-init` service waits for DynamoDB to be ready and then runs the table creation script automatically.
 
-## Table creation
+## DynamoDB table design
 
-You can also create the table manually:
-
-```bash
-npm run create:table:swim-core
-```
-
-The table uses:
+Current table:
 
 - table name: `swim-core`
 - partition key: `pk` (`S`)
 - sort key: `sk` (`S`)
 - billing mode: `PAY_PER_REQUEST`
 
-The creation script waits for DynamoDB to become ready, creates the table if needed, and prints the final table description.
+Current implemented entity: `Profile`
 
-## Current DynamoDB model
+Profile key shape:
 
-The current implemented entity is `Profile`.
+- `pk = PROFILE#<cognitoId>`
+- `sk = PROFILE#<cognitoId>`
 
-Profile item:
-
-- `pk = PROFILE#<profileId>`
-- `sk = PROFILE#<profileId>`
-
-Stored profile attributes:
+Stored attributes:
 
 - `profileId`
 - `email`
@@ -131,58 +126,48 @@ Stored profile attributes:
 - `createdAt`
 - `updatedAt`
 
-Important DynamoDB note:
+Important note:
 
-- only key attributes are declared when the table is created
-- non-key fields like `email`, `firstName`, and `teamName` are stored on each item when the repository writes data
+- at the Lambda/service boundary, the authenticated user identity is treated as `cognitoId`
+- in the current repository record shape, that value is persisted as `profileId`
 
-The profile id is treated as the authenticated user id and is expected to come from Cognito-style JWT claims via `sub`.
+## Validation
 
-## Local Lambda invocation
+`create-profile` uses `zod` for body validation.
 
-Run any registered Lambda locally with:
+Current body schema:
 
-```bash
-npm run dev:invoke -- <lambda-name>
-```
+- `firstName`
+- `lastName`
+- `birthDate`
+- `gender`
+- `teamName`
 
-Examples:
+The full service input extends that body with auth-derived fields:
 
-```bash
-npm run dev:invoke -- health
-npm run dev:invoke -- create-profile
-npm run dev:invoke -- get-profile
-```
+- `cognitoId`
+- `email`
 
-The local invoker builds a mock API Gateway v2 event and pretty-prints the Lambda response.
+## Auth model
 
-### Request fixtures
+The current backend expects Cognito-style JWT claims in the API Gateway event:
 
-Each Lambda has its own request fixture under `src/scripts/fixtures/requests`:
+- `sub` -> authenticated user id
+- `email` -> authenticated user email
 
-- `health.json`
-- `create-profile.json`
-- `get-profile.json`
+For local invocation, these claims are mocked in request fixtures.
 
-These fixtures control things like:
+## Local Lambda invocation fixtures
 
-- HTTP method
-- path
-- query parameters
-- headers
-- mocked JWT claims
+Each Lambda has its own request fixture.
 
-### Body fixtures
+Body fixtures are separate and only used where needed:
 
-Only Lambdas that need a request body have a body fixture.
+- `create-profile` currently has a dedicated body fixture
 
-Current body fixtures:
+The local invoker builds a mock API Gateway v2 event and prints the Lambda response in a readable JSON format.
 
-- `src/scripts/fixtures/bodies/create-profile.json`
-
-That file represents the payload sent to `create-profile`. The `profileId` is not part of the body because the handler reads it from `claims.sub`.
-
-## Implemented Lambda behavior
+## Handler behavior
 
 ### `health`
 
@@ -192,49 +177,49 @@ That file represents the payload sent to `create-profile`. The `profileId` is no
 
 ### `create-profile`
 
-- expects an authenticated `sub` claim
-- validates:
-  - `email`
-  - `firstName`
-  - `lastName`
-  - `birthDate`
-  - `gender`
-  - `teamName`
-- generates `createdAt` and `updatedAt`
-- writes the profile with a conditional insert
+- requires authenticated claims
+- requires email to be present in claims
+- validates body with Zod
+- checks for an existing profile
+- writes a new profile with generated `createdAt` and `updatedAt`
 
-Possible responses:
+Typical responses:
 
 - `201` profile created
-- `400` invalid body or missing auth claim
-- `409` profile already exists
-- `500` backend or DynamoDB error
+- `400` invalid body
+- `401` missing auth claims
+- `400` profile already exists
+- `500` unexpected backend error
 
 ### `get-profile`
 
-- expects an authenticated `sub` claim
-- fetches the profile for that authenticated user
+- requires authenticated claims
+- reads the profile for the authenticated user
 
-Possible responses:
+Typical responses:
 
 - `200` profile found
-- `400` missing auth claim
+- `401` missing auth claims
 - `404` profile not found
-- `500` backend or DynamoDB error
+- `500` unexpected backend error
+
+## Tests
+
+There are unit tests for the two profile Lambdas:
+
+- `create-profile`
+- `get-profile`
+
+These tests mock interactions below the Lambda layer so DynamoDB is not touched. They verify:
+
+- auth claim extraction
+- body validation behavior
+- success response shape
+- error mapping behavior
 
 ## Current limitations
 
-- there is no deployed AWS infrastructure yet
-- Cognito is not wired for real authentication yet; local invocation mocks JWT claims
-- there are no automated tests yet
-- performance entities and swimmer times are not implemented yet
-
-## Useful files
-
-- [package.json](/Users/jgalvis/Desktop/personal_repos/swim-core/package.json)
-- [docker-compose.yml](/Users/jgalvis/Desktop/personal_repos/swim-core/docker-compose.yml)
-- [.env](/Users/jgalvis/Desktop/personal_repos/swim-core/.env)
-- [src/functions/create-profile.ts](/Users/jgalvis/Desktop/personal_repos/swim-core/src/functions/create-profile.ts)
-- [src/functions/get-profile.ts](/Users/jgalvis/Desktop/personal_repos/swim-core/src/functions/get-profile.ts)
-- [src/repositories/profile-repository.ts](/Users/jgalvis/Desktop/personal_repos/swim-core/src/repositories/profile-repository.ts)
-- [src/scripts/invoke-lambda.ts](/Users/jgalvis/Desktop/personal_repos/swim-core/src/scripts/invoke-lambda.ts)
+- AWS deployment infrastructure is not implemented yet
+- Cognito is not wired for real hosted auth yet; local invocation uses mocked claims
+- only the profile domain is implemented so far
+- performance recording and swimmer times are not implemented yet

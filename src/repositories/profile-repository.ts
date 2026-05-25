@@ -14,10 +14,10 @@ export type ProfileRecord = {
   updatedAt: string;
 };
 
-function getProfileKeys(profileId: string) {
+function getProfileKeys(cognitoId: string) {
   return {
-    pk: `PROFILE#${profileId}`,
-    sk: `PROFILE#${profileId}`,
+    pk: `PROFILE#${cognitoId}`,
+    sk: `PROFILE#${cognitoId}`,
   };
 }
 
@@ -69,7 +69,7 @@ function mapItemToProfileRecord(
   };
 }
 
-export async function createProfile(profile: ProfileRecord) {
+export async function insertProfile(profile: ProfileRecord) {
   const client = createDynamoClient();
   const { swimCoreTableName } = getConfig();
   const keys = getProfileKeys(profile.profileId);
@@ -97,7 +97,7 @@ export async function createProfile(profile: ProfileRecord) {
   return profile;
 }
 
-export async function getProfile(profileId: string) {
+export async function getProfileById(profileId: string) {
   const client = createDynamoClient();
   const { swimCoreTableName } = getConfig();
   const keys = getProfileKeys(profileId);

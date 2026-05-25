@@ -4,9 +4,9 @@ import {
   APIGatewayProxyEventV2,
   APIGatewayProxyResultV2,
   Context,
-  Handler,
+  Handler
 } from 'aws-lambda';
-import { loadLocalEnvDefaults } from '../lib/env.js';
+import { loadLocalEnvDefaults } from '../../lib/env.js';
 
 loadLocalEnvDefaults();
 
@@ -27,9 +27,7 @@ type LambdaRegistration = {
   implemented: boolean;
   requestFixturePath: string;
   bodyFixturePath?: string;
-  loadHandler?: () => Promise<
-    Handler<APIGatewayProxyEventV2, APIGatewayProxyResultV2>
-  >;
+  loadHandler: any; // bypass non-sense for local dev
 };
 
 const REGISTRY: Record<SupportedLambdaName, LambdaRegistration> = {
@@ -39,34 +37,34 @@ const REGISTRY: Record<SupportedLambdaName, LambdaRegistration> = {
     implemented: true,
     requestFixturePath: resolve(
       process.cwd(),
-      'src/scripts/fixtures/requests/health.json',
+      'src/scripts/lambda/fixtures/requests/health.json',
     ),
-    loadHandler: async () => (await import('../functions/health.js')).handler,
+    loadHandler: async () => (await import('../../functions/health.js')).handler,
   },
   'create-profile': {
     defaultMethod: 'POST',
-    defaultPath: '/profiles',
+    defaultPath: '/profile',
     implemented: true,
     requestFixturePath: resolve(
       process.cwd(),
-      'src/scripts/fixtures/requests/create-profile.json',
+      'src/scripts/lambda/fixtures/requests/create-profile.json',
     ),
     bodyFixturePath: resolve(
       process.cwd(),
-      'src/scripts/fixtures/bodies/create-profile.json',
+      'src/scripts/lambda/fixtures/bodies/create-profile.json',
     ),
     loadHandler: async () =>
-      (await import('../functions/create-profile.js')).handler,
+      (await import('../../functions/create-profile.js')).handler,
   },
   'get-profile': {
     defaultMethod: 'GET',
-    defaultPath: '/profiles/me',
+    defaultPath: '/profile',
     implemented: true,
     requestFixturePath: resolve(
       process.cwd(),
-      'src/scripts/fixtures/requests/get-profile.json',
+      'src/scripts/lambda/fixtures/requests/get-profile.json',
     ),
-    loadHandler: async () => (await import('../functions/get-profile.js')).handler,
+    loadHandler: async () => (await import('../../functions/get-profile.js')).handler,
   },
 };
 
@@ -249,7 +247,7 @@ async function main() {
   const body = await loadBodyFixture(registration.bodyFixturePath);
   const event = buildEvent(lambdaName, registration, fixture, body);
   const context = buildContext(lambdaName);
-  const response = await handler(event, context, () => undefined);
+  const response = await handler(event, context);
 
   console.log(formatResponse(response));
 }

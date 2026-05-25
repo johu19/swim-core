@@ -4,8 +4,8 @@ import {
   ListTablesCommand,
   ResourceInUseException,
 } from '@aws-sdk/client-dynamodb';
-import { createDynamoClient } from '../lib/dynamo.js';
-import { getConfig, loadLocalEnvDefaults } from '../lib/env.js';
+import { createDynamoClient } from '../../lib/dynamo.js';
+import { getConfig, loadLocalEnvDefaults } from '../../lib/env.js';
 
 loadLocalEnvDefaults();
 
