@@ -66,7 +66,6 @@ function getStructuredResponse(
   if (!response || typeof response === 'string') {
     assert.fail('Expected a structured API Gateway response object.');
   }
-
   assert.ok('statusCode' in response);
   assert.ok('body' in response);
 
