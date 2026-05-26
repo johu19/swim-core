@@ -4,7 +4,8 @@ import {
   APIGatewayProxyEventV2,
   APIGatewayProxyStructuredResultV2,
 } from 'aws-lambda';
-import { buildCreateProfileHandler } from '../src/functions/create-profile.js';
+import { handler } from '../src/functions/create-profile.js';
+import * as profileService from '../src/services/profile-service.js';
 
 function buildEvent(
   overrides: Partial<APIGatewayProxyEventV2> = {},
@@ -78,20 +79,27 @@ function getStructuredResponse(
 
 test('create-profile returns 201 and sends auth + body fields to service', async () => {
   let capturedInput: unknown;
-
-  const handler = buildCreateProfileHandler({
-    createProfile: async (input) => {
+  const originalCreateProfile = profileService.createProfile;
+  (profileService as { createProfile: typeof profileService.createProfile }).createProfile =
+    async (input) => {
       capturedInput = input;
 
       return {
-        ...input,
+        profileId: input.cognitoId,
+        email: input.email,
+        firstName: input.firstName,
+        lastName: input.lastName,
+        birthDate: input.birthDate,
+        gender: input.gender,
+        teamName: input.teamName,
         createdAt: '2026-05-25T00:00:00.000Z',
         updatedAt: '2026-05-25T00:00:00.000Z',
       };
-    },
-  });
+    };
 
   const response = await handler(buildEvent(), {} as never, () => undefined);
+  (profileService as { createProfile: typeof profileService.createProfile }).createProfile =
+    originalCreateProfile;
 
   const structuredResponse = getStructuredResponse(response);
 
@@ -108,7 +116,7 @@ test('create-profile returns 201 and sends auth + body fields to service', async
 
   assert.deepEqual(JSON.parse(structuredResponse.body), {
     profile: {
-      cognitoId: 'cognito-123',
+      profileId: 'cognito-123',
       email: 'jose@example.com',
       firstName: 'Jose',
       lastName: 'Galvis',
@@ -122,11 +130,11 @@ test('create-profile returns 201 and sends auth + body fields to service', async
 });
 
 test('create-profile returns 400 when payload validation fails', async () => {
-  const handler = buildCreateProfileHandler({
-    createProfile: async () => {
+  const originalCreateProfile = profileService.createProfile;
+  (profileService as { createProfile: typeof profileService.createProfile }).createProfile =
+    async () => {
       throw new Error('should not be called');
-    },
-  });
+    };
 
   const response = await handler(
     buildEvent({
@@ -140,6 +148,8 @@ test('create-profile returns 400 when payload validation fails', async () => {
     {} as never,
     () => undefined,
   );
+  (profileService as { createProfile: typeof profileService.createProfile }).createProfile =
+    originalCreateProfile;
 
   const structuredResponse = getStructuredResponse(response);
 

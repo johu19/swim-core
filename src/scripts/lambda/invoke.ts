@@ -10,7 +10,12 @@ import { loadLocalEnvDefaults } from '../../lib/env.js';
 
 loadLocalEnvDefaults();
 
-type SupportedLambdaName = 'health' | 'create-profile' | 'get-profile';
+type SupportedLambdaName =
+  | 'health'
+  | 'create-profile'
+  | 'get-profile'
+  | 'create-performance'
+  | 'get-performances';
 
 type InvokeRequestFixture = {
   method?: string;
@@ -65,6 +70,32 @@ const REGISTRY: Record<SupportedLambdaName, LambdaRegistration> = {
       'src/scripts/lambda/fixtures/requests/get-profile.json',
     ),
     loadHandler: async () => (await import('../../functions/get-profile.js')).handler,
+  },
+  'create-performance': {
+    defaultMethod: 'POST',
+    defaultPath: '/performances',
+    implemented: true,
+    requestFixturePath: resolve(
+      process.cwd(),
+      'src/scripts/lambda/fixtures/requests/create-performance.json',
+    ),
+    bodyFixturePath: resolve(
+      process.cwd(),
+      'src/scripts/lambda/fixtures/bodies/create-performance.json',
+    ),
+    loadHandler: async () =>
+      (await import('../../functions/create-performance.js')).handler,
+  },
+  'get-performances': {
+    defaultMethod: 'GET',
+    defaultPath: '/performances',
+    implemented: true,
+    requestFixturePath: resolve(
+      process.cwd(),
+      'src/scripts/lambda/fixtures/requests/get-performances.json',
+    ),
+    loadHandler: async () =>
+      (await import('../../functions/get-performances.js')).handler,
   },
 };
 

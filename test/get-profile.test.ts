@@ -4,8 +4,9 @@ import {
   APIGatewayProxyEventV2,
   APIGatewayProxyStructuredResultV2,
 } from 'aws-lambda';
-import { buildGetProfileHandler } from '../src/functions/get-profile.js';
+import { handler } from '../src/functions/get-profile.js';
 import { AppError, ErrorName } from '../src/lib/error-handler.js';
+import * as profileService from '../src/services/profile-service.js';
 
 function buildEvent(
   overrides: Partial<APIGatewayProxyEventV2> = {},
@@ -71,9 +72,9 @@ function getStructuredResponse(
 
 test('get-profile returns 200 and looks up profile using cognito id from claims', async () => {
   let capturedCognitoId: string | undefined;
-
-  const handler = buildGetProfileHandler({
-    getProfile: async (cognitoId) => {
+  const originalGetProfile = profileService.getProfile;
+  (profileService as { getProfile: typeof profileService.getProfile }).getProfile =
+    async (cognitoId) => {
       capturedCognitoId = cognitoId;
 
       return {
@@ -87,10 +88,11 @@ test('get-profile returns 200 and looks up profile using cognito id from claims'
         createdAt: '2026-05-25T00:00:00.000Z',
         updatedAt: '2026-05-25T00:00:00.000Z',
       };
-    },
-  });
+    };
 
   const response = await handler(buildEvent(), {} as never, () => undefined);
+  (profileService as { getProfile: typeof profileService.getProfile }).getProfile =
+    originalGetProfile;
 
   const structuredResponse = getStructuredResponse(response);
 
@@ -112,17 +114,19 @@ test('get-profile returns 200 and looks up profile using cognito id from claims'
 });
 
 test('get-profile returns mapped app error response when profile is missing', async () => {
-  const handler = buildGetProfileHandler({
-    getProfile: async () => {
+  const originalGetProfile = profileService.getProfile;
+  (profileService as { getProfile: typeof profileService.getProfile }).getProfile =
+    async () => {
       throw new AppError(
         ErrorName.ProfileNotFound,
         'Profile "cognito-123" was not found.',
         404,
       );
-    },
-  });
+    };
 
   const response = await handler(buildEvent(), {} as never, () => undefined);
+  (profileService as { getProfile: typeof profileService.getProfile }).getProfile =
+    originalGetProfile;
 
   const structuredResponse = getStructuredResponse(response);
 

@@ -1,0 +1,11 @@
+{
+  "method": "GET",
+  "path": "/performances",
+  "headers": {},
+  "pathParameters": {},
+  "queryStringParameters": {},
+  "claims": {
+    "sub": "cognito-id-local-swimmer-test",
+    "email": "jagn1997@hotmail.com"
+  }
+}
