@@ -6,7 +6,7 @@ import {
   Context,
   Handler
 } from 'aws-lambda';
-import { loadLocalEnvDefaults } from '../../lib/env.js';
+import { loadLocalEnvDefaults } from '../../src/lib/env.js';
 
 loadLocalEnvDefaults();
 
@@ -42,9 +42,9 @@ const REGISTRY: Record<SupportedLambdaName, LambdaRegistration> = {
     implemented: true,
     requestFixturePath: resolve(
       process.cwd(),
-      'src/scripts/lambda/fixtures/requests/health.json',
+      'scripts/lambda/fixtures/requests/health.json',
     ),
-    loadHandler: async () => (await import('../../functions/health.js')).handler,
+    loadHandler: async () => (await import('../../src/functions/health.js')).handler,
   },
   'create-profile': {
     defaultMethod: 'POST',
@@ -52,14 +52,14 @@ const REGISTRY: Record<SupportedLambdaName, LambdaRegistration> = {
     implemented: true,
     requestFixturePath: resolve(
       process.cwd(),
-      'src/scripts/lambda/fixtures/requests/create-profile.json',
+      'scripts/lambda/fixtures/requests/create-profile.json',
     ),
     bodyFixturePath: resolve(
       process.cwd(),
-      'src/scripts/lambda/fixtures/bodies/create-profile.json',
+      'scripts/lambda/fixtures/bodies/create-profile.json',
     ),
     loadHandler: async () =>
-      (await import('../../functions/create-profile.js')).handler,
+      (await import('../../src/functions/create-profile.js')).handler,
   },
   'get-profile': {
     defaultMethod: 'GET',
@@ -67,9 +67,9 @@ const REGISTRY: Record<SupportedLambdaName, LambdaRegistration> = {
     implemented: true,
     requestFixturePath: resolve(
       process.cwd(),
-      'src/scripts/lambda/fixtures/requests/get-profile.json',
+      'scripts/lambda/fixtures/requests/get-profile.json',
     ),
-    loadHandler: async () => (await import('../../functions/get-profile.js')).handler,
+    loadHandler: async () => (await import('../../src/functions/get-profile.js')).handler,
   },
   'create-performance': {
     defaultMethod: 'POST',
@@ -77,14 +77,14 @@ const REGISTRY: Record<SupportedLambdaName, LambdaRegistration> = {
     implemented: true,
     requestFixturePath: resolve(
       process.cwd(),
-      'src/scripts/lambda/fixtures/requests/create-performance.json',
+      'scripts/lambda/fixtures/requests/create-performance.json',
     ),
     bodyFixturePath: resolve(
       process.cwd(),
-      'src/scripts/lambda/fixtures/bodies/create-performance.json',
+      'scripts/lambda/fixtures/bodies/create-performance.json',
     ),
     loadHandler: async () =>
-      (await import('../../functions/create-performance.js')).handler,
+      (await import('../../src/functions/create-performance.js')).handler,
   },
   'get-performances': {
     defaultMethod: 'GET',
@@ -92,10 +92,10 @@ const REGISTRY: Record<SupportedLambdaName, LambdaRegistration> = {
     implemented: true,
     requestFixturePath: resolve(
       process.cwd(),
-      'src/scripts/lambda/fixtures/requests/get-performances.json',
+      'scripts/lambda/fixtures/requests/get-performances.json',
     ),
     loadHandler: async () =>
-      (await import('../../functions/get-performances.js')).handler,
+      (await import('../../src/functions/get-performances.js')).handler,
   },
 };
 
