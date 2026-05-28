@@ -13,14 +13,6 @@ type AppConfig = {
   swimCoreTableName: string;
 };
 
-const DEFAULTS = {
-  AWS_REGION: 'us-east-1',
-  AWS_ACCESS_KEY_ID: 'local',
-  AWS_SECRET_ACCESS_KEY: 'local',
-  DYNAMODB_ENDPOINT: 'http://localhost:8000',
-  SWIM_CORE_TABLE_NAME: 'swim-core',
-} satisfies Record<EnvKey, string>;
-
 function getEnv(name: EnvKey) {
   return process.env[name];
 }
@@ -33,12 +25,6 @@ function requireEnv(name: EnvKey) {
   }
 
   return value;
-}
-
-export function loadLocalEnvDefaults() {
-  for (const [name, value] of Object.entries(DEFAULTS)) {
-    process.env[name as EnvKey] ??= value;
-  }
 }
 
 export function getConfig(): AppConfig {

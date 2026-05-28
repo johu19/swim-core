@@ -6,18 +6,21 @@ import { getConfig } from './env.js';
 
 export function createDynamoClient() {
   const config = getConfig();
-  const credentials =
-    config.awsAccessKeyId && config.awsSecretAccessKey
-      ? {
-          accessKeyId: config.awsAccessKeyId,
-          secretAccessKey: config.awsSecretAccessKey,
-        }
-      : undefined;
+
+  if (config.dynamoDbEndpoint) {
+    return new DynamoDBClient({
+      region: config.awsRegion,
+      endpoint: config.dynamoDbEndpoint,
+      credentials: {
+        accessKeyId: config.awsAccessKeyId ?? 'local',
+        secretAccessKey: config.awsSecretAccessKey ?? 'local',
+      },
+      maxAttempts: 1,
+    });
+  }
 
   return new DynamoDBClient({
     region: config.awsRegion,
-    endpoint: config.dynamoDbEndpoint,
-    credentials,
     maxAttempts: 1,
   });
 }

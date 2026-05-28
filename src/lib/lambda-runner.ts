@@ -16,6 +16,7 @@ export type StructuredParameters<TBody, TPath, TQuery> = {
 };
 
 type RunnerOptions<TBody, TPath, TQuery> = {
+  authenticationEnabled?: boolean;
   bodySchema?: ZodType<TBody>;
   pathSchema?: ZodType<TPath>;
   querySchema?: ZodType<TQuery>;
@@ -90,7 +91,13 @@ export function runner<TBody, TPath, TQuery>(
 ): APIGatewayProxyHandlerV2 {
   return async (event: APIGatewayProxyEventV2) => {
     try {
-      const auth = extractAuth(event);
+      const auth =
+        options.authenticationEnabled === false
+          ? {
+              cognitoId: '',
+              email: '',
+            }
+          : extractAuth(event);
       const body = parseBody(event.body, options.bodySchema);
       const path = parseWithSchema(
         options.pathSchema,
