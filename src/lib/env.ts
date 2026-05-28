@@ -7,8 +7,8 @@ type EnvKey =
 
 type AppConfig = {
   awsRegion: string;
-  awsAccessKeyId: string;
-  awsSecretAccessKey: string;
+  awsAccessKeyId?: string;
+  awsSecretAccessKey?: string;
   dynamoDbEndpoint?: string;
   swimCoreTableName: string;
 };
@@ -44,8 +44,8 @@ export function loadLocalEnvDefaults() {
 export function getConfig(): AppConfig {
   return {
     awsRegion: requireEnv('AWS_REGION'),
-    awsAccessKeyId: requireEnv('AWS_ACCESS_KEY_ID'),
-    awsSecretAccessKey: requireEnv('AWS_SECRET_ACCESS_KEY'),
+    awsAccessKeyId: getEnv('AWS_ACCESS_KEY_ID'),
+    awsSecretAccessKey: getEnv('AWS_SECRET_ACCESS_KEY'),
     dynamoDbEndpoint: getEnv('DYNAMODB_ENDPOINT'),
     swimCoreTableName: requireEnv('SWIM_CORE_TABLE_NAME'),
   };
