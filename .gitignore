@@ -1,8 +1,12 @@
 node_modules
+infra/node_modules
 dist
+infra/cdk.out
+infra/.cdk.staging
 .DS_Store
 coverage
 *.log
 .env
 .env.*
 .docker/
+get-cognito-token.js

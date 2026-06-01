@@ -12,4 +12,6 @@ export const handler = runner(async () => {
     service: 'swim-core-api',
     database,
   });
+}, {
+  authenticationEnabled: false,
 });

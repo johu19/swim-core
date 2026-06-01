@@ -1,225 +1,279 @@
-# swim-core Backend
+# swim-core
 
-`swim-core` is a Lambda-first TypeScript backend for a swim app. The current MVP is focused on authenticated swimmer profiles stored in DynamoDB, with local DynamoDB startup, local Lambda invocation, a shared Lambda runner, Zod-based validation, and unit tests for the profile handlers.
+`swim-core` is a TypeScript serverless backend for a swim application. The repository is organized around Lambda handlers, shared request-processing utilities, domain services, DynamoDB repositories, and a small AWS CDK app for the development stack.
 
-## Current features
+The current API supports:
 
-Implemented Lambda handlers:
-
-- `health`
-- `create-profile`
-- `get-profile`
-
-Current profile flow:
-
-- authentication data is read from mocked or real Cognito-style JWT claims
-- the shared Lambda runner extracts auth, parses request data, validates inputs, and handles errors
-- `create-profile` validates the body with Zod and creates a profile for the authenticated user
-- `get-profile` fetches the authenticated user profile
+- `GET /health`
+- `POST /profile`
+- `GET /profile`
+- `POST /performances`
+- `GET /performances`
 
 ## Architecture
 
-The current Lambda flow is intentionally layered:
+### High-level shape
 
-- `functions`: Lambda entrypoints and success responses
-- `lambda runner`: shared API Gateway wrapper
-- `validations`: Zod schemas and input types
-- `services`: business rules and orchestration
-- `repositories`: DynamoDB access
-- `error handler`: centralized error-to-response mapping
+The project is split into two main areas:
 
-The shared runner is responsible for:
+- `src/`: application code for Lambda handlers and backend logic
+- `infra/`: AWS CDK code that provisions the development stack
 
-- extracting Cognito auth claims
-- parsing body JSON
-- validating body, path, and query inputs with Zod
-- passing normalized inputs into the handler
-- catching errors and delegating to `handleError`
+At runtime, the request flow looks like this:
 
-## Environment
+1. API Gateway receives an HTTP request.
+2. For protected routes, API Gateway validates a Cognito JWT.
+3. A Lambda handler in `src/functions/` receives the API Gateway v2 event.
+4. The shared runner in `src/lib/lambda-runner.ts` extracts auth, parses JSON, validates inputs, logs the request, and normalizes error handling.
+5. A service in `src/services/` applies business rules.
+6. A repository in `src/repositories/` reads from or writes to DynamoDB.
 
-Local configuration lives in the root `.env` file:
+### Application layers
 
-```bash
-AWS_REGION=us-east-1
-AWS_ACCESS_KEY_ID=local
-AWS_SECRET_ACCESS_KEY=local
-DYNAMODB_ENDPOINT=http://localhost:8000
-SWIM_CORE_TABLE_NAME=swim-core
+#### `src/functions/`
+
+Lambda entrypoints. These files stay intentionally thin and delegate almost everything to shared helpers and services.
+
+- `health.ts`: checks DynamoDB connectivity
+- `create-profile.ts`: creates an authenticated swimmer profile
+- `get-profile.ts`: fetches the authenticated swimmer profile
+- `create-performance.ts`: stores a performance for the authenticated swimmer
+- `get-performances.ts`: lists performances for the authenticated swimmer
+
+#### `src/lib/`
+
+Shared infrastructure code used by multiple handlers.
+
+- `auth.ts`: extracts Cognito-style JWT claims from the API Gateway event
+- `lambda-runner.ts`: shared request wrapper for auth, parsing, validation, logging, and error mapping
+- `dynamo.ts`: creates the DynamoDB client and exposes a health check helper
+- `env.ts`: reads required environment variables
+- `http.ts`: small JSON response helper
+- `error-handler.ts`: central app error type and HTTP error serialization
+
+#### `src/services/`
+
+Business logic and orchestration.
+
+- `profile-service.ts`: creates profiles and enforces "one profile per authenticated user"
+- `performance-service.ts`: creates and fetches swimmer performance records
+
+#### `src/repositories/`
+
+Low-level DynamoDB access using the AWS SDK v3.
+
+- `profile-repository.ts`: reads and writes profile items
+- `performance-repository.ts`: reads and writes performance items
+
+#### `src/validations/`
+
+Zod schemas for request payload validation.
+
+- `create-profile.ts`
+- `create-performance.ts`
+
+#### `scripts/`
+
+Local developer utilities.
+
+- `scripts/db/create-swim-core-table.ts`: creates the local DynamoDB table if it does not exist
+- `scripts/lambda/invoke.ts`: builds mock API Gateway events and invokes handlers locally using fixtures
+
+#### `test/`
+
+Unit tests for the service layer. These tests mock repository calls and do not require a running DynamoDB instance.
+
+### Data model
+
+The backend currently uses a single DynamoDB table with:
+
+- partition key: `pk`
+- sort key: `sk`
+
+The table stores multiple item types in the same partition space.
+
+Profile item shape:
+
+- `pk = PROFILE#<cognitoId>`
+- `sk = PROFILE#<cognitoId>`
+
+Performance item shape:
+
+- `pk = PROFILE#<cognitoId>`
+- `sk = PERFORMANCE#<performedAt>#<performanceId>`
+
+This means all performance records for a swimmer live under the same partition as that swimmer's profile, and performance listing is done with a `begins_with(sk, 'PERFORMANCE#')` query.
+
+### Authentication model
+
+Protected handlers expect Cognito JWT claims on the API Gateway request context.
+
+Required claims:
+
+- `sub`: treated as the authenticated swimmer identity
+- `email`: used when creating the swimmer profile
+
+Locally, these claims are provided by JSON fixtures in `scripts/lambda/fixtures/requests/`.
+
+### Infrastructure
+
+The CDK app in `infra/` defines a development stack that provisions:
+
+- one DynamoDB table
+- one Cognito User Pool
+- one Cognito User Pool Client
+- one API Gateway HTTP API
+- five Lambda functions
+
+The protected routes are wired to a JWT authorizer backed by Cognito. The stack also outputs the API endpoint and Cognito identifiers needed by a client application.
+
+## Repository layout
+
+```text
+.
+|-- src/
+|   |-- functions/
+|   |-- lib/
+|   |-- repositories/
+|   |-- services/
+|   `-- validations/
+|-- scripts/
+|   |-- db/
+|   `-- lambda/
+|-- test/
+`-- infra/
 ```
 
-## Install
+## Development
+
+### Prerequisites
+
+- Node.js `24.x`
+- npm
+- Docker Desktop or another Docker runtime
+
+### Install dependencies
+
+Install root dependencies:
 
 ```bash
 npm install
 ```
 
-## Scripts
-
-Build:
+Install CDK dependencies:
 
 ```bash
-npm run build
+cd infra
+npm install
 ```
 
-Create the DynamoDB table manually:
+### Environment variables
+
+The application expects these environment variables:
 
 ```bash
-npm run create:table:swim-core
+AWS_REGION=us-east-1
+DYNAMODB_ENDPOINT=http://localhost:8000
+SWIM_CORE_TABLE_NAME=swim-core
 ```
 
-Invoke a Lambda locally:
+For local DynamoDB usage, the AWS SDK client also assumes local credentials internally when `DYNAMODB_ENDPOINT` is set, so no real AWS credentials are required for the app to talk to DynamoDB Local.
 
-```bash
-npm run dev:invoke -- health
-npm run dev:invoke -- create-profile
-npm run dev:invoke -- get-profile
-```
+### Run local DynamoDB
 
-Run unit tests:
-
-```bash
-npm test
-```
-
-## Local DynamoDB
-
-Start DynamoDB Local with Docker Compose:
+Start DynamoDB Local and the table initialization helper:
 
 ```bash
 docker compose up -d
 ```
 
-DynamoDB Local is exposed at:
+This starts:
 
-```text
-http://localhost:8000
+- `dynamodb-local` on `http://localhost:8000`
+- `dynamodb-init`, which waits for DynamoDB to be ready and then creates the table
+
+If you want to create the table manually instead, run:
+
+```bash
+npm run create:table:swim-core
 ```
 
-The `dynamodb-init` service waits for DynamoDB to be ready and then runs the table creation script automatically.
+### Build the project
 
-## DynamoDB table design
+```bash
+npm run build
+```
 
-Current table:
+Compiled output is written to `dist/`.
 
-- table name: `swim-core`
-- partition key: `pk` (`S`)
-- sort key: `sk` (`S`)
-- billing mode: `PAY_PER_REQUEST`
+### Invoke Lambdas locally
 
-Current implemented entity: `Profile`
+The local invoker compiles the project, loads fixture data, constructs a mock API Gateway v2 event, and runs a handler directly.
 
-Profile key shape:
+Supported commands:
 
-- `pk = PROFILE#<cognitoId>`
-- `sk = PROFILE#<cognitoId>`
+```bash
+npm run dev:invoke -- health
+npm run dev:invoke -- create-profile
+npm run dev:invoke -- get-profile
+npm run dev:invoke -- create-performance
+npm run dev:invoke -- get-performances
+```
 
-Stored attributes:
+Useful fixtures live in:
 
-- `profileId`
-- `email`
-- `firstName`
-- `lastName`
-- `birthDate`
-- `gender`
-- `teamName`
-- `createdAt`
-- `updatedAt`
+- `scripts/lambda/fixtures/requests/`
+- `scripts/lambda/fixtures/bodies/`
 
-Important note:
+If you need to test different auth claims or request bodies, update those JSON files and invoke the handler again.
 
-- at the Lambda/service boundary, the authenticated user identity is treated as `cognitoId`
-- in the current repository record shape, that value is persisted as `profileId`
+### Run tests
 
-## Validation
+```bash
+npm test
+```
 
-`create-profile` uses `zod` for body validation.
+The current test suite covers the service layer for:
 
-Current body schema:
+- profile creation and retrieval
+- performance creation and listing
 
-- `firstName`
-- `lastName`
-- `birthDate`
-- `gender`
-- `teamName`
+### Deploy or inspect the AWS dev stack
 
-The full service input extends that body with auth-derived fields:
+From the `infra/` directory:
 
-- `cognitoId`
-- `email`
+Build the CDK app:
 
-## Auth model
+```bash
+npm run build
+```
 
-The current backend expects Cognito-style JWT claims in the API Gateway event:
+Synthesize the CloudFormation template:
 
-- `sub` -> authenticated user id
-- `email` -> authenticated user email
+```bash
+npx cdk synth
+```
 
-For local invocation, these claims are mocked in request fixtures.
+Deploy the development stack:
 
-## Local Lambda invocation fixtures
+```bash
+npx cdk deploy
+```
 
-Each Lambda has its own request fixture.
+The stack creates the API, Cognito resources, Lambda functions, and DynamoDB table described above.
 
-Body fixtures are separate and only used where needed:
+## Current development workflow
 
-- `create-profile` currently has a dedicated body fixture
+For day-to-day backend work, the simplest loop is:
 
-The local invoker builds a mock API Gateway v2 event and prints the Lambda response in a readable JSON format.
+1. Start DynamoDB Local with `docker compose up -d`.
+2. Set the required environment variables.
+3. Run `npm run dev:invoke -- <lambda-name>` to exercise handlers locally.
+4. Run `npm test` to verify the service layer.
+5. Use the CDK app in `infra/` when you want to validate the AWS deployment shape.
 
-## Handler behavior
+## Notes
 
-### `health`
-
-- checks DynamoDB connectivity with `ListTables`
-- returns `200` when the database is reachable
-- returns `503` when the database is unavailable
-
-### `create-profile`
-
-- requires authenticated claims
-- requires email to be present in claims
-- validates body with Zod
-- checks for an existing profile
-- writes a new profile with generated `createdAt` and `updatedAt`
-
-Typical responses:
-
-- `201` profile created
-- `400` invalid body
-- `401` missing auth claims
-- `400` profile already exists
-- `500` unexpected backend error
-
-### `get-profile`
-
-- requires authenticated claims
-- reads the profile for the authenticated user
-
-Typical responses:
-
-- `200` profile found
-- `401` missing auth claims
-- `404` profile not found
-- `500` unexpected backend error
-
-## Tests
-
-There are unit tests for the two profile Lambdas:
-
-- `create-profile`
-- `get-profile`
-
-These tests mock interactions below the Lambda layer so DynamoDB is not touched. They verify:
-
-- auth claim extraction
-- body validation behavior
-- success response shape
-- error mapping behavior
-
-## Current limitations
-
-- AWS deployment infrastructure is not implemented yet
-- Cognito is not wired for real hosted auth yet; local invocation uses mocked claims
-- only the profile domain is implemented so far
-- performance recording and swimmer times are not implemented yet
+- The application code and the CDK app are intentionally separate npm projects.
+- The local table name defaults to `swim-core`, while the CDK development stack currently provisions a table named `swim-core-dev`.
+- Protected routes rely on Cognito-style JWT claims even during local invocation, but those claims are mocked from fixtures rather than obtained from a real sign-in flow.

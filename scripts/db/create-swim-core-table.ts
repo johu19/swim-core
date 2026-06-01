@@ -5,9 +5,7 @@ import {
   ResourceInUseException,
 } from '@aws-sdk/client-dynamodb';
 import { createDynamoClient } from '../../src/lib/dynamo.js';
-import { getConfig, loadLocalEnvDefaults } from '../../src/lib/env.js';
-
-loadLocalEnvDefaults();
+import { getConfig } from '../../src/lib/env.js';
 
 const MAX_READY_ATTEMPTS = 10;
 const READY_RETRY_DELAY_MS = 1_000;

@@ -6,9 +6,6 @@ import {
   Context,
   Handler
 } from 'aws-lambda';
-import { loadLocalEnvDefaults } from '../../src/lib/env.js';
-
-loadLocalEnvDefaults();
 
 type SupportedLambdaName =
   | 'health'
