@@ -12,8 +12,8 @@ export function createDynamoClient() {
       region: config.awsRegion,
       endpoint: config.dynamoDbEndpoint,
       credentials: {
-        accessKeyId: config.awsAccessKeyId ?? 'local',
-        secretAccessKey: config.awsSecretAccessKey ?? 'local',
+        accessKeyId: 'local',
+        secretAccessKey: 'local',
       },
       maxAttempts: 1,
     });

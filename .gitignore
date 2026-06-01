@@ -9,3 +9,4 @@ coverage
 .env
 .env.*
 .docker/
+get-cognito-token.js

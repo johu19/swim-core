@@ -26,6 +26,15 @@ type LambdaHandler<TBody, TPath, TQuery> = (
   params: StructuredParameters<TBody, TPath, TQuery>,
 ) => Promise<APIGatewayProxyStructuredResultV2>;
 
+type RequestLogContext = {
+  authenticationEnabled: boolean;
+  cognitoId: string;
+  email: string;
+  method: string;
+  path: string;
+  requestId: string;
+};
+
 function formatZodError(error: ZodError, source: string) {
   const [issue] = error.issues;
 
@@ -85,19 +94,68 @@ function parseBody<T>(rawBody: string | undefined, schema?: ZodType<T>) {
   return parseWithSchema(schema, parsedBody, 'body');
 }
 
+function buildRequestLogContext(
+  event: APIGatewayProxyEventV2,
+  auth: AuthContext,
+  authenticationEnabled: boolean,
+): RequestLogContext {
+  return {
+    authenticationEnabled,
+    cognitoId: auth.cognitoId,
+    email: auth.email,
+    method: event.requestContext.http.method,
+    path: event.requestContext.http.path,
+    requestId: event.requestContext.requestId,
+  };
+}
+
+function logInfo(message: string, context: Record<string, unknown>) {
+  console.log(
+    JSON.stringify({
+      level: 'info',
+      message,
+      ...context,
+    }),
+  );
+}
+
+function logError(message: string, context: Record<string, unknown>) {
+  console.error(
+    JSON.stringify({
+      level: 'error',
+      message,
+      ...context,
+    }),
+  );
+}
+
+function getStatusCode(response: APIGatewayProxyStructuredResultV2) {
+  return response.statusCode ?? 200;
+}
+
 export function runner<TBody, TPath, TQuery>(
   handlerFn: LambdaHandler<TBody, TPath, TQuery>,
   options: RunnerOptions<TBody, TPath, TQuery> = {},
 ): APIGatewayProxyHandlerV2 {
   return async (event: APIGatewayProxyEventV2) => {
+    const authenticationEnabled = options.authenticationEnabled !== false;
+    const startedAt = Date.now();
+
     try {
-      const auth =
-        options.authenticationEnabled === false
-          ? {
-              cognitoId: '',
-              email: '',
-            }
-          : extractAuth(event);
+      const auth = authenticationEnabled
+        ? extractAuth(event)
+        : {
+            cognitoId: '',
+            email: '',
+          };
+      const requestLogContext = buildRequestLogContext(
+        event,
+        auth,
+        authenticationEnabled,
+      );
+
+      logInfo('Lambda request received.', requestLogContext);
+
       const body = parseBody(event.body, options.bodySchema);
       const path = parseWithSchema(
         options.pathSchema,
@@ -110,15 +168,42 @@ export function runner<TBody, TPath, TQuery>(
         'query',
       );
 
-      return await handlerFn({
+      const response = await handlerFn({
         event,
         auth,
         body,
         path,
         query,
       });
+
+      logInfo('Lambda request succeeded.', {
+        ...requestLogContext,
+        durationMs: Date.now() - startedAt,
+        statusCode: getStatusCode(response),
+      });
+
+      return response;
     } catch (error) {
-      return handleError(error);
+      const auth = authenticationEnabled
+        ? {
+            cognitoId: '',
+            email: '',
+          }
+        : {
+            cognitoId: '',
+            email: '',
+          };
+      const response = handleError(error);
+
+      logError('Lambda request failed.', {
+        ...buildRequestLogContext(event, auth, authenticationEnabled),
+        durationMs: Date.now() - startedAt,
+        errorMessage: error instanceof Error ? error.message : 'Unknown error.',
+        errorName: error instanceof Error ? error.name : 'UnknownError',
+        statusCode: response.statusCode ?? 500,
+      });
+
+      return response;
     }
   };
 }
