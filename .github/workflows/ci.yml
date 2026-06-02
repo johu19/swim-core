@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - '**'
-  pull_request:
 
 jobs:
   lambda-server:
@@ -34,9 +33,6 @@ jobs:
   cdk-infra:
     name: cdk-infra
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: infra
 
     steps:
       - name: Checkout
@@ -47,13 +43,21 @@ jobs:
         with:
           node-version: 24
           cache: npm
-          cache-dependency-path: infra/package-lock.json
+          cache-dependency-path: |
+            package-lock.json
+            infra/package-lock.json
 
-      - name: Install
+      - name: Install root dependencies
         run: npm ci
+
+      - name: Install infra dependencies
+        run: npm ci
+        working-directory: infra
 
       - name: Build
         run: npm run build
+        working-directory: infra
 
       - name: Synth
         run: npx cdk synth
+        working-directory: infra
