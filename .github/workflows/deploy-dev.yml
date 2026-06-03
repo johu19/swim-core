@@ -1,0 +1,53 @@
+name: Deploy Dev
+
+on:
+  push:
+    branches:
+      - master
+
+concurrency:
+  group: deploy-dev
+  cancel-in-progress: false
+
+jobs:
+  deploy-dev:
+    name: deploy-dev
+    runs-on: ubuntu-latest
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            infra/package-lock.json
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Install infra dependencies
+        run: npm ci
+        working-directory: infra
+
+      - name: Build infra
+        run: npm run build
+        working-directory: infra
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::179540755677:role/swim-core-dev-deploy
+          aws-region: us-east-1
+
+      - name: Deploy dev stack
+        run: npx cdk deploy dev --require-approval never
+        working-directory: infra
