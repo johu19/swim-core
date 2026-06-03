@@ -9,9 +9,11 @@ import {
 
 type SupportedLambdaName =
   | 'health'
-  | 'create-profile'
   | 'get-profile'
+  | 'patch-profile'
   | 'create-performance'
+  | 'patch-performance'
+  | 'delete-performance'
   | 'get-performances';
 
 type InvokeRequestFixture = {
@@ -43,30 +45,30 @@ const REGISTRY: Record<SupportedLambdaName, LambdaRegistration> = {
     ),
     loadHandler: async () => (await import('../../src/functions/health.js')).handler,
   },
-  'create-profile': {
-    defaultMethod: 'POST',
-    defaultPath: '/profile',
-    implemented: true,
-    requestFixturePath: resolve(
-      process.cwd(),
-      'scripts/lambda/fixtures/requests/create-profile.json',
-    ),
-    bodyFixturePath: resolve(
-      process.cwd(),
-      'scripts/lambda/fixtures/bodies/create-profile.json',
-    ),
-    loadHandler: async () =>
-      (await import('../../src/functions/create-profile.js')).handler,
-  },
   'get-profile': {
     defaultMethod: 'GET',
-    defaultPath: '/profile',
+    defaultPath: '/me/profile',
     implemented: true,
     requestFixturePath: resolve(
       process.cwd(),
       'scripts/lambda/fixtures/requests/get-profile.json',
     ),
     loadHandler: async () => (await import('../../src/functions/get-profile.js')).handler,
+  },
+  'patch-profile': {
+    defaultMethod: 'PATCH',
+    defaultPath: '/me/profile',
+    implemented: true,
+    requestFixturePath: resolve(
+      process.cwd(),
+      'scripts/lambda/fixtures/requests/patch-profile.json',
+    ),
+    bodyFixturePath: resolve(
+      process.cwd(),
+      'scripts/lambda/fixtures/bodies/patch-profile.json',
+    ),
+    loadHandler: async () =>
+      (await import('../../src/functions/patch-profile.js')).handler,
   },
   'create-performance': {
     defaultMethod: 'POST',
@@ -82,6 +84,32 @@ const REGISTRY: Record<SupportedLambdaName, LambdaRegistration> = {
     ),
     loadHandler: async () =>
       (await import('../../src/functions/create-performance.js')).handler,
+  },
+  'patch-performance': {
+    defaultMethod: 'PATCH',
+    defaultPath: '/performances/performance-local-1',
+    implemented: true,
+    requestFixturePath: resolve(
+      process.cwd(),
+      'scripts/lambda/fixtures/requests/patch-performance.json',
+    ),
+    bodyFixturePath: resolve(
+      process.cwd(),
+      'scripts/lambda/fixtures/bodies/patch-performance.json',
+    ),
+    loadHandler: async () =>
+      (await import('../../src/functions/patch-performance.js')).handler,
+  },
+  'delete-performance': {
+    defaultMethod: 'DELETE',
+    defaultPath: '/performances/performance-local-1',
+    implemented: true,
+    requestFixturePath: resolve(
+      process.cwd(),
+      'scripts/lambda/fixtures/requests/delete-performance.json',
+    ),
+    loadHandler: async () =>
+      (await import('../../src/functions/delete-performance.js')).handler,
   },
   'get-performances': {
     defaultMethod: 'GET',

@@ -1,9 +1,10 @@
 {
-  "method": "GET",
+  "method": "PATCH",
   "path": "/me/profile",
   "headers": {
     "content-type": "application/json"
   },
+  "pathParameters": {},
   "queryStringParameters": {},
   "claims": {
     "sub": "cognito-id-local-swimmer-test",

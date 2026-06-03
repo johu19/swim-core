@@ -5,11 +5,11 @@ import { getConfig } from '../lib/env.js';
 export type ProfileRecord = {
   profileId: string;
   email: string;
-  firstName: string;
-  lastName: string;
-  birthDate: string;
-  gender: 'male' | 'female';
-  teamName: string;
+  firstName?: string;
+  lastName?: string;
+  birthDate?: string;
+  gender?: 'male' | 'female';
+  teamName?: string;
   createdAt: string;
   updatedAt: string;
 };
@@ -38,21 +38,11 @@ function mapItemToProfileRecord(
   const createdAt = item.createdAt?.S;
   const updatedAt = item.updatedAt?.S;
 
-  if (
-    !profileId ||
-    !email ||
-    !firstName ||
-    !lastName ||
-    !birthDate ||
-    !gender ||
-    !teamName ||
-    !createdAt ||
-    !updatedAt
-  ) {
+  if (!profileId || !email || !createdAt || !updatedAt) {
     throw new Error('Profile item is missing one or more required attributes.');
   }
 
-  if (gender !== 'male' && gender !== 'female') {
+  if (gender && gender !== 'male' && gender !== 'female') {
     throw new Error(`Profile item has unsupported gender value "${gender}".`);
   }
 
@@ -62,35 +52,52 @@ function mapItemToProfileRecord(
     firstName,
     lastName,
     birthDate,
-    gender,
+    gender: gender as ProfileRecord['gender'],
     teamName,
     createdAt,
     updatedAt,
   };
 }
 
+function mapProfileRecordToItem(profile: ProfileRecord) {
+  return {
+    pk: { S: getProfileKeys(profile.profileId).pk },
+    sk: { S: getProfileKeys(profile.profileId).sk },
+    profileId: { S: profile.profileId },
+    email: { S: profile.email },
+    ...(profile.firstName ? { firstName: { S: profile.firstName } } : {}),
+    ...(profile.lastName ? { lastName: { S: profile.lastName } } : {}),
+    ...(profile.birthDate ? { birthDate: { S: profile.birthDate } } : {}),
+    ...(profile.gender ? { gender: { S: profile.gender } } : {}),
+    ...(profile.teamName ? { teamName: { S: profile.teamName } } : {}),
+    createdAt: { S: profile.createdAt },
+    updatedAt: { S: profile.updatedAt },
+  };
+}
+
 export async function insertProfile(profile: ProfileRecord) {
   const client = createDynamoClient();
   const { swimCoreTableName } = getConfig();
-  const keys = getProfileKeys(profile.profileId);
 
   await client.send(
     new PutItemCommand({
       TableName: swimCoreTableName,
-      Item: {
-        pk: { S: keys.pk },
-        sk: { S: keys.sk },
-        profileId: { S: profile.profileId },
-        email: { S: profile.email },
-        firstName: { S: profile.firstName },
-        lastName: { S: profile.lastName },
-        birthDate: { S: profile.birthDate },
-        gender: { S: profile.gender },
-        teamName: { S: profile.teamName },
-        createdAt: { S: profile.createdAt },
-        updatedAt: { S: profile.updatedAt },
-      },
+      Item: mapProfileRecordToItem(profile),
       ConditionExpression: 'attribute_not_exists(pk)',
+    }),
+  );
+
+  return profile;
+}
+
+export async function saveProfile(profile: ProfileRecord) {
+  const client = createDynamoClient();
+  const { swimCoreTableName } = getConfig();
+
+  await client.send(
+    new PutItemCommand({
+      TableName: swimCoreTableName,
+      Item: mapProfileRecordToItem(profile),
     }),
   );
 

@@ -82,7 +82,7 @@ async function main() {
   console.log('Planned item shapes for this table:');
   console.log('- Profile item: pk = PROFILE#<profileId>, sk = PROFILE#<profileId>');
   console.log(
-    '- Performance item: pk = PROFILE#<profileId>, sk = PERFORMANCE#<performedAt>#<performanceId>',
+    '- Performance item: pk = PROFILE#<profileId>, sk = PERFORMANCE#<performanceId>',
   );
   console.log('');
   console.log(

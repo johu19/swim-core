@@ -1,4 +1,6 @@
 import {
+  DeleteItemCommand,
+  GetItemCommand,
   PutItemCommand,
   QueryCommand,
 } from '@aws-sdk/client-dynamodb';
@@ -23,12 +25,11 @@ export type PerformanceRecord = {
 
 function getPerformanceKeys(
   profileId: string,
-  performedAt: string,
   performanceId: string,
 ) {
   return {
     pk: `PROFILE#${profileId}`,
-    sk: `PERFORMANCE#${performedAt}#${performanceId}`,
+    sk: `PERFORMANCE#${performanceId}`,
   };
 }
 
@@ -111,39 +112,99 @@ function mapItemToPerformanceRecord(
   };
 }
 
+function mapPerformanceRecordToItem(performance: PerformanceRecord) {
+  const keys = getPerformanceKeys(
+    performance.profileId,
+    performance.performanceId,
+  );
+
+  return {
+    pk: { S: keys.pk },
+    sk: { S: keys.sk },
+    performanceId: { S: performance.performanceId },
+    profileId: { S: performance.profileId },
+    stroke: { S: performance.stroke },
+    distance: { N: String(performance.distance) },
+    poolLength: { N: String(performance.poolLength) },
+    poolLengthUnit: { S: performance.poolLengthUnit },
+    timeMs: { N: String(performance.timeMs) },
+    performedAt: { S: performance.performedAt },
+    sourceType: { S: performance.sourceType },
+    effortLevel: { N: String(performance.effortLevel) },
+    notes: { S: performance.notes },
+    createdAt: { S: performance.createdAt },
+    updatedAt: { S: performance.updatedAt },
+  };
+}
+
 export async function insertPerformance(performance: PerformanceRecord) {
   const client = createDynamoClient();
   const { swimCoreTableName } = getConfig();
-  const keys = getPerformanceKeys(
-    performance.profileId,
-    performance.performedAt,
-    performance.performanceId,
-  );
 
   await client.send(
     new PutItemCommand({
       TableName: swimCoreTableName,
-      Item: {
-        pk: { S: keys.pk },
-        sk: { S: keys.sk },
-        performanceId: { S: performance.performanceId },
-        profileId: { S: performance.profileId },
-        stroke: { S: performance.stroke },
-        distance: { N: String(performance.distance) },
-        poolLength: { N: String(performance.poolLength) },
-        poolLengthUnit: { S: performance.poolLengthUnit },
-        timeMs: { N: String(performance.timeMs) },
-        performedAt: { S: performance.performedAt },
-        sourceType: { S: performance.sourceType },
-        effortLevel: { N: String(performance.effortLevel) },
-        notes: { S: performance.notes },
-        createdAt: { S: performance.createdAt },
-        updatedAt: { S: performance.updatedAt },
-      },
+      Item: mapPerformanceRecordToItem(performance),
     }),
   );
 
   return performance;
+}
+
+export async function savePerformance(performance: PerformanceRecord) {
+  const client = createDynamoClient();
+  const { swimCoreTableName } = getConfig();
+
+  await client.send(
+    new PutItemCommand({
+      TableName: swimCoreTableName,
+      Item: mapPerformanceRecordToItem(performance),
+    }),
+  );
+
+  return performance;
+}
+
+export async function getPerformanceById(
+  profileId: string,
+  performanceId: string,
+) {
+  const client = createDynamoClient();
+  const { swimCoreTableName } = getConfig();
+  const keys = getPerformanceKeys(profileId, performanceId);
+  const response = await client.send(
+    new GetItemCommand({
+      TableName: swimCoreTableName,
+      Key: {
+        pk: { S: keys.pk },
+        sk: { S: keys.sk },
+      },
+      ConsistentRead: true,
+    }),
+  );
+
+  return mapItemToPerformanceRecord(
+    response.Item as Record<string, { S?: string; N?: string }> | undefined,
+  );
+}
+
+export async function deletePerformanceById(
+  profileId: string,
+  performanceId: string,
+) {
+  const client = createDynamoClient();
+  const { swimCoreTableName } = getConfig();
+  const keys = getPerformanceKeys(profileId, performanceId);
+
+  await client.send(
+    new DeleteItemCommand({
+      TableName: swimCoreTableName,
+      Key: {
+        pk: { S: keys.pk },
+        sk: { S: keys.sk },
+      },
+    }),
+  );
 }
 
 export async function getPerformancesByProfileId(profileId: string) {
@@ -161,11 +222,23 @@ export async function getPerformancesByProfileId(profileId: string) {
     }),
   );
 
-  return (response.Items ?? [])
+  const performances = (response.Items ?? [])
     .map((item) =>
       mapItemToPerformanceRecord(
         item as Record<string, { S?: string; N?: string }>,
       ),
     )
     .filter((item): item is PerformanceRecord => item !== null);
+
+  performances.sort((left, right) => {
+    const performedAtComparison = left.performedAt.localeCompare(right.performedAt);
+
+    if (performedAtComparison !== 0) {
+      return performedAtComparison;
+    }
+
+    return left.performanceId.localeCompare(right.performanceId);
+  });
+
+  return performances;
 }

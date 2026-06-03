@@ -5,7 +5,7 @@ export enum ErrorName {
   PayloadValidation = 'PayloadValidation',
   Unauthorized = 'Unauthorized',
   ProfileNotFound = 'ProfileNotFound',
-  ProfileAlreadyExists = 'ProfileAlreadyExists',
+  PerformanceNotFound = 'PerformanceNotFound',
   Internal = 'Internal',
 }
 

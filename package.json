@@ -9,8 +9,8 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "clean": "rm -rf dist",
-    "create:table:swim-core": "npm run build && node dist/scripts/db/create-swim-core-table.js",
-    "dev:invoke": "npm run --silent build && node dist/scripts/lambda/invoke.js",
+    "create:table:swim-core": "npm run build && node --env-file=.env dist/scripts/db/create-swim-core-table.js",
+    "dev:invoke": "npm run --silent build && node --env-file=.env dist/scripts/lambda/invoke.js",
     "test": "npm run --silent clean && npm run --silent build && node --test \"dist/test/*.test.js\""
   },
   "dependencies": {
