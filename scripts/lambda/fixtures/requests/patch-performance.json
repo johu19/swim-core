@@ -1,10 +1,12 @@
 {
-  "method": "POST",
-  "path": "/profile",
+  "method": "PATCH",
+  "path": "/performances/62749951-fe47-4027-b5f1-b4b6dbc10824",
   "headers": {
     "content-type": "application/json"
   },
-  "pathParameters": {},
+  "pathParameters": {
+    "performanceId": "62749951-fe47-4027-b5f1-b4b6dbc10824"
+  },
   "queryStringParameters": {},
   "claims": {
     "sub": "cognito-id-local-swimmer-test",

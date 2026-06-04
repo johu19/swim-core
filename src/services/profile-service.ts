@@ -1,49 +1,52 @@
-import { ConditionalCheckFailedException } from '@aws-sdk/client-dynamodb';
 import { AppError, ErrorName } from '../lib/error-handler.js';
 import {
-  insertProfile,
   getProfileById,
   ProfileRecord,
+  insertProfile,
+  saveProfile,
 } from '../repositories/profile-repository.js';
-import { CreateProfileInput } from '../validations/create-profile.js';
+import { PatchProfileInput } from '../validations/patch-profile.js';
 
-export async function createProfile(input: CreateProfileInput) {
+export async function getOrCreateProfile(cognitoId: string, email: string) {
+  const existingProfile = await getProfileById(cognitoId);
+
+  if (existingProfile) {
+    return existingProfile;
+  }
+
   const now = new Date().toISOString();
   const profile: ProfileRecord = {
-    profileId: input.cognitoId,
-    email: input.email,
-    firstName: input.firstName,
-    lastName: input.lastName,
-    birthDate: input.birthDate,
-    gender: input.gender,
-    teamName: input.teamName,
+    profileId: cognitoId,
+    email,
     createdAt: now,
     updatedAt: now,
   };
 
-  const existingProfile = await getProfileById(input.cognitoId);
-
-  if (existingProfile) {
-    throw new AppError(
-      ErrorName.ProfileAlreadyExists,
-      `Profile "${input.cognitoId}" already exists.`,
-      400,
-    );
-  }
-
   return await insertProfile(profile);
 }
 
-export async function getProfile(profileId: string) {
-  const profile = await getProfileById(profileId);
+export async function updateProfile(input: PatchProfileInput) {
+  const existingProfile = await getProfileById(input.cognitoId);
 
-  if (!profile) {
+  if (!existingProfile) {
     throw new AppError(
       ErrorName.ProfileNotFound,
-      `Profile "${profileId}" was not found.`,
+      `Profile "${input.cognitoId}" was not found.`,
       404,
     );
   }
 
-  return profile;
+  const {
+    cognitoId: _cognitoId,
+    ...profileUpdates
+  } = input;
+  const updatedProfile: ProfileRecord = {
+    ...existingProfile,
+    ...profileUpdates,
+    profileId: existingProfile.profileId,
+    email: existingProfile.email,
+    updatedAt: new Date().toISOString(),
+  };
+
+  return await saveProfile(updatedProfile);
 }

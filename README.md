@@ -5,10 +5,12 @@
 The current API supports:
 
 - `GET /health`
-- `POST /profile`
-- `GET /profile`
+- `GET /me/profile`
+- `PATCH /me/profile`
 - `POST /performances`
 - `GET /performances`
+- `PATCH /performances/:performanceId`
+- `DELETE /performances/:performanceId`
 
 ## Architecture
 
@@ -35,10 +37,12 @@ At runtime, the request flow looks like this:
 Lambda entrypoints. These files stay intentionally thin and delegate almost everything to shared helpers and services.
 
 - `health.ts`: checks DynamoDB connectivity
-- `create-profile.ts`: creates an authenticated swimmer profile
-- `get-profile.ts`: fetches the authenticated swimmer profile
+- `get-profile.ts`: fetches the authenticated swimmer profile or creates a minimal one
+- `patch-profile.ts`: updates profile fields for the authenticated swimmer
 - `create-performance.ts`: stores a performance for the authenticated swimmer
 - `get-performances.ts`: lists performances for the authenticated swimmer
+- `patch-performance.ts`: updates a performance for the authenticated swimmer
+- `delete-performance.ts`: deletes a performance for the authenticated swimmer
 
 #### `src/lib/`
 
@@ -55,22 +59,24 @@ Shared infrastructure code used by multiple handlers.
 
 Business logic and orchestration.
 
-- `profile-service.ts`: creates profiles and enforces "one profile per authenticated user"
-- `performance-service.ts`: creates and fetches swimmer performance records
+- `profile-service.ts`: gets, creates, and updates swimmer profiles
+- `performance-service.ts`: creates, fetches, updates, and deletes swimmer performance records
 
 #### `src/repositories/`
 
 Low-level DynamoDB access using the AWS SDK v3.
 
 - `profile-repository.ts`: reads and writes profile items
-- `performance-repository.ts`: reads and writes performance items
+- `performance-repository.ts`: reads, writes, and deletes performance items
 
 #### `src/validations/`
 
 Zod schemas for request payload validation.
 
-- `create-profile.ts`
+- `patch-profile.ts`
 - `create-performance.ts`
+- `patch-performance.ts`
+- `performance-path.ts`
 
 #### `scripts/`
 
@@ -97,12 +103,43 @@ Profile item shape:
 - `pk = PROFILE#<cognitoId>`
 - `sk = PROFILE#<cognitoId>`
 
+Profile records always store:
+
+- `profileId`
+- `email`
+- `createdAt`
+- `updatedAt`
+
+Profile records may also store these optional fields after the user updates them:
+
+- `firstName`
+- `lastName`
+- `birthDate`
+- `gender`
+- `teamName`
+
 Performance item shape:
 
 - `pk = PROFILE#<cognitoId>`
-- `sk = PERFORMANCE#<performedAt>#<performanceId>`
+- `sk = PERFORMANCE#<performanceId>`
 
-This means all performance records for a swimmer live under the same partition as that swimmer's profile, and performance listing is done with a `begins_with(sk, 'PERFORMANCE#')` query.
+Performance records always store:
+
+- `performanceId`
+- `profileId`
+- `stroke`
+- `distance`
+- `poolLength`
+- `poolLengthUnit`
+- `timeMs`
+- `performedAt`
+- `sourceType`
+- `effortLevel`
+- `notes`
+- `createdAt`
+- `updatedAt`
+
+This means all performance records for a swimmer live under the same partition as that swimmer's profile, and performance listing is done with a `begins_with(sk, 'PERFORMANCE#')` query. Results are then sorted in application code by `performedAt`.
 
 ### Authentication model
 
@@ -111,7 +148,7 @@ Protected handlers expect Cognito JWT claims on the API Gateway request context.
 Required claims:
 
 - `sub`: treated as the authenticated swimmer identity
-- `email`: used when creating the swimmer profile
+- `email`: used when creating a minimal profile for a new authenticated swimmer
 
 Locally, these claims are provided by JSON fixtures in `scripts/lambda/fixtures/requests/`.
 
@@ -123,7 +160,7 @@ The CDK app in `infra/` defines a development stack that provisions:
 - one Cognito User Pool
 - one Cognito User Pool Client
 - one API Gateway HTTP API
-- five Lambda functions
+- seven Lambda functions
 
 The protected routes are wired to a JWT authorizer backed by Cognito. The stack also outputs the API endpoint and Cognito identifiers needed by a client application.
 
@@ -179,6 +216,8 @@ SWIM_CORE_TABLE_NAME=swim-core
 
 For local DynamoDB usage, the AWS SDK client also assumes local credentials internally when `DYNAMODB_ENDPOINT` is set, so no real AWS credentials are required for the app to talk to DynamoDB Local.
 
+Local helper scripts such as `npm run create:table:swim-core` and `npm run dev:invoke -- <lambda-name>` automatically load variables from the root `.env` file.
+
 ### Run local DynamoDB
 
 Start DynamoDB Local and the table initialization helper:
@@ -214,10 +253,12 @@ Supported commands:
 
 ```bash
 npm run dev:invoke -- health
-npm run dev:invoke -- create-profile
 npm run dev:invoke -- get-profile
+npm run dev:invoke -- patch-profile
 npm run dev:invoke -- create-performance
 npm run dev:invoke -- get-performances
+npm run dev:invoke -- patch-performance
+npm run dev:invoke -- delete-performance
 ```
 
 Useful fixtures live in:
@@ -235,8 +276,8 @@ npm test
 
 The current test suite covers the service layer for:
 
-- profile creation and retrieval
-- performance creation and listing
+- profile get-or-create, retrieval, and updates
+- performance creation, listing, updates, and deletion
 
 ### Deploy or inspect the AWS dev stack
 
@@ -277,3 +318,6 @@ For day-to-day backend work, the simplest loop is:
 - The application code and the CDK app are intentionally separate npm projects.
 - The local table name defaults to `swim-core`, while the CDK development stack currently provisions a table named `swim-core-dev`.
 - Protected routes rely on Cognito-style JWT claims even during local invocation, but those claims are mocked from fixtures rather than obtained from a real sign-in flow.
+- `GET /me/profile` creates a minimal profile automatically when one does not yet exist.
+- `PATCH /me/profile` updates an existing profile and returns `404` if the profile has not been created yet.
+- `PATCH /performances/:performanceId` and `DELETE /performances/:performanceId` both return `404` when the performance does not exist for the authenticated user.

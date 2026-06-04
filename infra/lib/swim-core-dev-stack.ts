@@ -88,20 +88,30 @@ export class SwimCoreDevStack extends Stack {
       'swim-core-dev-health',
       'health',
     );
-    const createProfileLambda = createLambda(
-      'CreateProfileLambda',
-      'swim-core-dev-create-profile',
-      'create-profile',
-    );
     const getProfileLambda = createLambda(
       'GetProfileLambda',
       'swim-core-dev-get-profile',
       'get-profile',
     );
+    const patchProfileLambda = createLambda(
+      'PatchProfileLambda',
+      'swim-core-dev-patch-profile',
+      'patch-profile',
+    );
     const createPerformanceLambda = createLambda(
       'CreatePerformanceLambda',
       'swim-core-dev-create-performance',
       'create-performance',
+    );
+    const patchPerformanceLambda = createLambda(
+      'PatchPerformanceLambda',
+      'swim-core-dev-patch-performance',
+      'patch-performance',
+    );
+    const deletePerformanceLambda = createLambda(
+      'DeletePerformanceLambda',
+      'swim-core-dev-delete-performance',
+      'delete-performance',
     );
     const getPerformancesLambda = createLambda(
       'GetPerformancesLambda',
@@ -110,9 +120,11 @@ export class SwimCoreDevStack extends Stack {
     );
 
     table.grantReadData(healthLambda);
-    table.grantReadWriteData(createProfileLambda);
-    table.grantReadData(getProfileLambda);
+    table.grantReadWriteData(getProfileLambda);
+    table.grantReadWriteData(patchProfileLambda);
     table.grantReadWriteData(createPerformanceLambda);
+    table.grantReadWriteData(patchPerformanceLambda);
+    table.grantReadWriteData(deletePerformanceLambda);
     table.grantReadData(getPerformancesLambda);
 
     const api = new HttpApi(this, 'SwimCoreApi', {
@@ -129,21 +141,21 @@ export class SwimCoreDevStack extends Stack {
     });
 
     api.addRoutes({
-      path: '/profile',
-      methods: [HttpMethod.POST],
+      path: '/me/profile',
+      methods: [HttpMethod.GET],
       integration: new HttpLambdaIntegration(
-        'CreateProfileLambdaIntegration',
-        createProfileLambda,
+        'GetProfileLambdaIntegration',
+        getProfileLambda,
       ),
       authorizer: jwtAuthorizer,
     });
 
     api.addRoutes({
-      path: '/profile',
-      methods: [HttpMethod.GET],
+      path: '/me/profile',
+      methods: [HttpMethod.PATCH],
       integration: new HttpLambdaIntegration(
-        'GetProfileLambdaIntegration',
-        getProfileLambda,
+        'PatchProfileLambdaIntegration',
+        patchProfileLambda,
       ),
       authorizer: jwtAuthorizer,
     });
@@ -164,6 +176,26 @@ export class SwimCoreDevStack extends Stack {
       integration: new HttpLambdaIntegration(
         'GetPerformancesLambdaIntegration',
         getPerformancesLambda,
+      ),
+      authorizer: jwtAuthorizer,
+    });
+
+    api.addRoutes({
+      path: '/performances/{performanceId}',
+      methods: [HttpMethod.PATCH],
+      integration: new HttpLambdaIntegration(
+        'PatchPerformanceLambdaIntegration',
+        patchPerformanceLambda,
+      ),
+      authorizer: jwtAuthorizer,
+    });
+
+    api.addRoutes({
+      path: '/performances/{performanceId}',
+      methods: [HttpMethod.DELETE],
+      integration: new HttpLambdaIntegration(
+        'DeletePerformanceLambdaIntegration',
+        deletePerformanceLambda,
       ),
       authorizer: jwtAuthorizer,
     });

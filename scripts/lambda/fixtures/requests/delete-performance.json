@@ -1,0 +1,13 @@
+{
+  "method": "DELETE",
+  "path": "/performances/performance-local-1",
+  "headers": {},
+  "pathParameters": {
+    "performanceId": "performance-local-1"
+  },
+  "queryStringParameters": {},
+  "claims": {
+    "sub": "cognito-id-local-swimmer-test",
+    "email": "jagn1997@hotmail.com"
+  }
+}

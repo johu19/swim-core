@@ -1,11 +1,11 @@
 {
-  "stroke": "butterfly",
-  "distance": 100,
+  "stroke": "backstroke",
+  "distance": 200,
   "poolLength": 25,
   "poolLengthUnit": "meters",
-  "timeMs": 120120,
+  "timeMs": 239000,
   "performedAt": "2026-09-20",
   "sourceType": "competition",
   "effortLevel": 5,
-  "notes": "National tourney final heat"
+  "notes": "National tourney final heat backstroke"
 }
