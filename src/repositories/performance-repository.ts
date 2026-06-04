@@ -137,21 +137,7 @@ function mapPerformanceRecordToItem(performance: PerformanceRecord) {
   };
 }
 
-export async function insertPerformance(performance: PerformanceRecord) {
-  const client = createDynamoClient();
-  const { swimCoreTableName } = getConfig();
-
-  await client.send(
-    new PutItemCommand({
-      TableName: swimCoreTableName,
-      Item: mapPerformanceRecordToItem(performance),
-    }),
-  );
-
-  return performance;
-}
-
-export async function savePerformance(performance: PerformanceRecord) {
+export async function writePerformance(performance: PerformanceRecord) {
   const client = createDynamoClient();
   const { swimCoreTableName } = getConfig();
 

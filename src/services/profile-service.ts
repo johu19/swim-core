@@ -50,17 +50,3 @@ export async function updateProfile(input: PatchProfileInput) {
 
   return await saveProfile(updatedProfile);
 }
-
-export async function getProfile(profileId: string) {
-  const profile = await getProfileById(profileId);
-
-  if (!profile) {
-    throw new AppError(
-      ErrorName.ProfileNotFound,
-      `Profile "${profileId}" was not found.`,
-      404,
-    );
-  }
-
-  return profile;
-}

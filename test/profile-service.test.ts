@@ -5,7 +5,6 @@ import { type ProfileRecord } from '../src/repositories/profile-repository.js';
 import * as profileRepository from '../src/repositories/profile-repository.js';
 import {
   getOrCreateProfile,
-  getProfile,
   updateProfile,
 } from '../src/services/profile-service.js';
 
@@ -59,52 +58,6 @@ test('getOrCreateProfile inserts a minimal profile when one does not exist', asy
       email: 'jose@example.com',
       createdAt: 'string',
       updatedAt: 'string',
-    },
-  );
-});
-
-test('getProfile returns the stored profile', async () => {
-  test.mock.method(profileRepository, 'getProfileById', async () => ({
-    profileId: 'cognito-123',
-    email: 'jose@example.com',
-    firstName: 'Jose',
-    lastName: 'Galvis',
-    birthDate: '1997-01-12',
-    gender: 'male',
-    teamName: 'Acuacol',
-    createdAt: '2026-05-27T00:00:00.000Z',
-    updatedAt: '2026-05-27T00:00:00.000Z',
-  }));
-
-  const result = await getProfile('cognito-123');
-
-  assert.deepEqual(result, {
-    profileId: 'cognito-123',
-    email: 'jose@example.com',
-    firstName: 'Jose',
-    lastName: 'Galvis',
-    birthDate: '1997-01-12',
-    gender: 'male',
-    teamName: 'Acuacol',
-    createdAt: '2026-05-27T00:00:00.000Z',
-    updatedAt: '2026-05-27T00:00:00.000Z',
-  });
-});
-
-test('getProfile throws ProfileNotFound when profile does not exist', async () => {
-  test.mock.method(profileRepository, 'getProfileById', async () => null);
-
-  await assert.rejects(
-    () => getProfile('cognito-123'),
-    (error: unknown) => {
-      assert.ok(error instanceof AppError);
-      assert.equal(error.name, ErrorName.ProfileNotFound);
-      assert.equal(error.statusCode, 404);
-      assert.equal(
-        error.message,
-        'ProfileNotFound: Profile "cognito-123" was not found.',
-      );
-      return true;
     },
   );
 });

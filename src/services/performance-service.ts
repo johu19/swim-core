@@ -4,9 +4,8 @@ import {
   deletePerformanceById,
   getPerformanceById,
   getPerformancesByProfileId,
-  insertPerformance,
   PerformanceRecord,
-  savePerformance,
+  writePerformance,
 } from '../repositories/performance-repository.js';
 import { CreatePerformanceInput } from '../validations/create-performance.js';
 import { PatchPerformanceInput } from '../validations/patch-performance.js';
@@ -29,7 +28,7 @@ export async function createPerformance(input: CreatePerformanceInput) {
     updatedAt: now,
   };
 
-  return await insertPerformance(performance);
+  return await writePerformance(performance);
 }
 
 export async function getPerformances(profileId: string) {
@@ -64,7 +63,7 @@ export async function updatePerformance(input: PatchPerformanceInput) {
     updatedAt: new Date().toISOString(),
   };
 
-  return await savePerformance(updatedPerformance);
+  return await writePerformance(updatedPerformance);
 }
 
 export async function deletePerformance(

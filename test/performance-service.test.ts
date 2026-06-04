@@ -19,7 +19,7 @@ test('createPerformance inserts a new performance with generated id and timestam
 
   test.mock.method(
     performanceRepository,
-    'insertPerformance',
+    'writePerformance',
     async (performance: PerformanceRecord) => {
       insertedPerformance = performance;
       return performance;
@@ -137,7 +137,7 @@ test('updatePerformance updates only the provided fields', async () => {
   );
   test.mock.method(
     performanceRepository,
-    'savePerformance',
+    'writePerformance',
     async (performance: PerformanceRecord) => {
       savedPerformance = performance;
       return performance;
