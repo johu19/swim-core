@@ -1,12 +1,17 @@
 import * as path from 'node:path';
 import {
   CfnOutput,
+  CfnParameter,
   Duration,
   Stack,
   StackProps,
 } from 'aws-cdk-lib';
 import { AttributeType, BillingMode, Table } from 'aws-cdk-lib/aws-dynamodb';
-import { HttpApi, HttpMethod } from 'aws-cdk-lib/aws-apigatewayv2';
+import {
+  CorsHttpMethod,
+  HttpApi,
+  HttpMethod,
+} from 'aws-cdk-lib/aws-apigatewayv2';
 import { HttpJwtAuthorizer } from 'aws-cdk-lib/aws-apigatewayv2-authorizers';
 import { HttpLambdaIntegration } from 'aws-cdk-lib/aws-apigatewayv2-integrations';
 import {
@@ -24,6 +29,11 @@ export class SwimCoreDevStack extends Stack {
 
     const repoRootPath = path.resolve(__dirname, '../..');
     const rootPackageLockFilePath = path.join(repoRootPath, 'package-lock.json');
+    const frontendOrigin = new CfnParameter(this, 'FrontendOrigin', {
+      type: 'String',
+      default: '*',
+      description: 'Allowed CORS origin for the UI.',
+    });
 
     const table = new Table(this, 'SwimCoreTable', {
       tableName: 'swim-core-dev',
@@ -129,6 +139,17 @@ export class SwimCoreDevStack extends Stack {
 
     const api = new HttpApi(this, 'SwimCoreApi', {
       apiName: 'swim-core-dev-api',
+      corsPreflight: {
+        allowOrigins: [frontendOrigin.valueAsString],
+        allowHeaders: ['authorization', 'content-type'],
+        allowMethods: [
+          CorsHttpMethod.GET,
+          CorsHttpMethod.POST,
+          CorsHttpMethod.PATCH,
+          CorsHttpMethod.DELETE,
+          CorsHttpMethod.OPTIONS,
+        ],
+      },
     });
 
     api.addRoutes({
@@ -218,6 +239,10 @@ export class SwimCoreDevStack extends Stack {
 
     new CfnOutput(this, 'UserPoolIssuerUrl', {
       value: `https://cognito-idp.${this.region}.amazonaws.com/${userPool.userPoolId}`,
+    });
+
+    new CfnOutput(this, 'FrontendOrigin', {
+      value: frontendOrigin.valueAsString,
     });
   }
 }
