@@ -241,7 +241,7 @@ export class SwimCoreDevStack extends Stack {
       value: `https://cognito-idp.${this.region}.amazonaws.com/${userPool.userPoolId}`,
     });
 
-    new CfnOutput(this, 'FrontendOrigin', {
+    new CfnOutput(this, 'FrontendOriginOutput', {
       value: frontendOrigin.valueAsString,
     });
   }
