@@ -116,6 +116,7 @@ Profile records may also store these optional fields after the user updates them
 - `lastName`
 - `birthDate`
 - `gender`
+- `favStroke`
 - `teamName`
 
 Performance item shape:
@@ -132,10 +133,10 @@ Performance records always store:
 - `poolLength`
 - `poolLengthUnit`
 - `timeMs`
+- `place` (optional, competition only)
+- `splits` (optional)
 - `performedAt`
 - `sourceType`
-- `effortLevel`
-- `notes`
 - `createdAt`
 - `updatedAt`
 

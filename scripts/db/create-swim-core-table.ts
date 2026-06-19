@@ -86,7 +86,7 @@ async function main() {
   );
   console.log('');
   console.log(
-    'Note: DynamoDB only defines key attributes at table creation time. Non-key fields like email, firstName, stroke, timeMs, and notes are stored on each item when the app writes data.',
+    'Note: DynamoDB only defines key attributes at table creation time. Non-key fields like email, firstName, stroke, and timeMs are stored on each item when the app writes data.',
   );
 }
 
