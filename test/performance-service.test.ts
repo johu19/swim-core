@@ -28,15 +28,15 @@ test('createPerformance inserts a new performance with generated id and timestam
 
   const result = await createPerformance({
     cognitoId: 'cognito-123',
-    stroke: 'butterfly',
-    distance: 50,
+    stroke: 'medley',
+    distance: 200,
     poolLength: 25,
     poolLengthUnit: 'meters',
     timeMs: 32780,
+    place: 1,
+    splits: [4200, 4100, 4100, 4100, 4100, 4100, 4040, 4040],
     performedAt: '2026-09-20',
     sourceType: 'competition',
-    effortLevel: 5,
-    notes: 'National tourney final heat',
   });
 
   assert.ok(insertedPerformance);
@@ -53,18 +53,182 @@ test('createPerformance inserts a new performance with generated id and timestam
     },
     {
       profileId: 'cognito-123',
-      stroke: 'butterfly',
-      distance: 50,
+      stroke: 'medley',
+      distance: 200,
       poolLength: 25,
       poolLengthUnit: 'meters',
       timeMs: 32780,
+      place: 1,
+      splits: [4200, 4100, 4100, 4100, 4100, 4100, 4040, 4040],
       performedAt: '2026-09-20',
       sourceType: 'competition',
-      effortLevel: 5,
-      notes: 'National tourney final heat',
       performanceId: 'string',
       createdAt: 'string',
       updatedAt: 'string',
+    },
+  );
+});
+
+test('createPerformance throws PayloadValidation when place is provided for training', async () => {
+  await assert.rejects(
+    () =>
+      createPerformance({
+        cognitoId: 'cognito-123',
+        stroke: 'freestyle',
+        distance: 100,
+        poolLength: 50,
+        poolLengthUnit: 'meters',
+        timeMs: 60000,
+        place: 1,
+        performedAt: '2026-09-20',
+        sourceType: 'training',
+      }),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError);
+      assert.equal(error.name, ErrorName.PayloadValidation);
+      assert.equal(error.statusCode, 400);
+      assert.equal(
+        error.message,
+        'PayloadValidation: place is not allowed when sourceType is "training".',
+      );
+      return true;
+    },
+  );
+});
+
+test('createPerformance inserts a performance without splits', async () => {
+  let insertedPerformance: unknown;
+
+  test.mock.method(
+    performanceRepository,
+    'writePerformance',
+    async (performance: PerformanceRecord) => {
+      insertedPerformance = performance;
+      return performance;
+    },
+  );
+
+  const result = await createPerformance({
+    cognitoId: 'cognito-123',
+    stroke: 'freestyle',
+    distance: 100,
+    poolLength: 50,
+    poolLengthUnit: 'meters',
+    timeMs: 60000,
+    performedAt: '2026-09-20',
+    sourceType: 'competition',
+  });
+
+  assert.ok(insertedPerformance);
+  assert.deepEqual(result, insertedPerformance);
+  assert.equal(
+    (insertedPerformance as PerformanceRecord).splits,
+    undefined,
+  );
+});
+
+test('createPerformance throws PayloadValidation when stroke and distance are incompatible', async () => {
+  await assert.rejects(
+    () =>
+      createPerformance({
+        cognitoId: 'cognito-123',
+        stroke: 'medley',
+        distance: 50,
+        poolLength: 25,
+        poolLengthUnit: 'meters',
+        timeMs: 32780,
+        performedAt: '2026-09-20',
+        sourceType: 'competition',
+      }),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError);
+      assert.equal(error.name, ErrorName.PayloadValidation);
+      assert.equal(error.statusCode, 400);
+      assert.equal(
+        error.message,
+        'PayloadValidation: distance 50 is not allowed for stroke "medley". Allowed distances: 100, 200, 400.',
+      );
+      return true;
+    },
+  );
+});
+
+test('createPerformance throws PayloadValidation when splits count does not match distance and poolLength', async () => {
+  await assert.rejects(
+    () =>
+      createPerformance({
+        cognitoId: 'cognito-123',
+        stroke: 'freestyle',
+        distance: 100,
+        poolLength: 25,
+        poolLengthUnit: 'meters',
+        timeMs: 60000,
+        splits: [15000, 15000],
+        performedAt: '2026-09-20',
+        sourceType: 'competition',
+      }),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError);
+      assert.equal(error.name, ErrorName.PayloadValidation);
+      assert.equal(error.statusCode, 400);
+      assert.equal(
+        error.message,
+        'PayloadValidation: splits must contain exactly 4 entries for distance 100 and poolLength 25.',
+      );
+      return true;
+    },
+  );
+});
+
+test('createPerformance throws PayloadValidation when splits total does not match timeMs', async () => {
+  await assert.rejects(
+    () =>
+      createPerformance({
+        cognitoId: 'cognito-123',
+        stroke: 'freestyle',
+        distance: 100,
+        poolLength: 25,
+        poolLengthUnit: 'meters',
+        timeMs: 60000,
+        splits: [15000, 15000, 15000, 14000],
+        performedAt: '2026-09-20',
+        sourceType: 'competition',
+      }),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError);
+      assert.equal(error.name, ErrorName.PayloadValidation);
+      assert.equal(error.statusCode, 400);
+      assert.equal(
+        error.message,
+        'PayloadValidation: splits must sum exactly to timeMs 60000.',
+      );
+      return true;
+    },
+  );
+});
+
+test('createPerformance throws PayloadValidation when distance 25 is used in a 50 pool', async () => {
+  await assert.rejects(
+    () =>
+      createPerformance({
+        cognitoId: 'cognito-123',
+        stroke: 'freestyle',
+        distance: 25,
+        poolLength: 50,
+        poolLengthUnit: 'meters',
+        timeMs: 32780,
+        performedAt: '2026-09-20',
+        sourceType: 'competition',
+      }),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError);
+      assert.equal(error.name, ErrorName.PayloadValidation);
+      assert.equal(error.statusCode, 400);
+      assert.equal(
+        error.message,
+        'PayloadValidation: distance 25 is not allowed for poolLength 50. Distance 25 is only allowed when poolLength is 25.',
+      );
+      return true;
     },
   );
 });
@@ -82,10 +246,10 @@ test('getPerformances returns all performances from the repository', async () =>
         poolLength: 25,
         poolLengthUnit: 'meters',
         timeMs: 32780,
+        place: 2,
+        splits: [16300, 16480],
         performedAt: '2026-09-20',
         sourceType: 'competition',
-        effortLevel: 5,
-        notes: 'National tourney final heat',
         createdAt: '2026-05-27T00:00:00.000Z',
         updatedAt: '2026-05-27T00:00:00.000Z',
       },
@@ -103,10 +267,10 @@ test('getPerformances returns all performances from the repository', async () =>
       poolLength: 25,
       poolLengthUnit: 'meters',
       timeMs: 32780,
+      place: 2,
+      splits: [16300, 16480],
       performedAt: '2026-09-20',
       sourceType: 'competition',
-      effortLevel: 5,
-      notes: 'National tourney final heat',
       createdAt: '2026-05-27T00:00:00.000Z',
       updatedAt: '2026-05-27T00:00:00.000Z',
     },
@@ -127,10 +291,9 @@ test('updatePerformance updates only the provided fields', async () => {
       poolLength: 25,
       poolLengthUnit: 'meters',
       timeMs: 32780,
+      place: 2,
       performedAt: '2026-09-20',
       sourceType: 'competition',
-      effortLevel: 5,
-      notes: 'National tourney final heat',
       createdAt: '2026-05-27T00:00:00.000Z',
       updatedAt: '2026-05-27T00:00:00.000Z',
     }),
@@ -148,7 +311,6 @@ test('updatePerformance updates only the provided fields', async () => {
     cognitoId: 'cognito-123',
     performanceId: 'performance-1',
     timeMs: 32000,
-    notes: 'Updated after race review',
   });
 
   assert.ok(savedPerformance);
@@ -166,12 +328,212 @@ test('updatePerformance updates only the provided fields', async () => {
       poolLength: 25,
       poolLengthUnit: 'meters',
       timeMs: 32000,
+      place: 2,
       performedAt: '2026-09-20',
       sourceType: 'competition',
-      effortLevel: 5,
-      notes: 'Updated after race review',
       createdAt: '2026-05-27T00:00:00.000Z',
       updatedAt: 'string',
+    },
+  );
+});
+
+test('updatePerformance throws PayloadValidation when merged sourceType training keeps place', async () => {
+  test.mock.method(
+    performanceRepository,
+    'getPerformanceById',
+    async () => ({
+      performanceId: 'performance-1',
+      profileId: 'cognito-123',
+      stroke: 'freestyle',
+      distance: 100,
+      poolLength: 50,
+      poolLengthUnit: 'meters',
+      timeMs: 60000,
+      place: 1,
+      performedAt: '2026-09-20',
+      sourceType: 'competition',
+      createdAt: '2026-05-27T00:00:00.000Z',
+      updatedAt: '2026-05-27T00:00:00.000Z',
+    }),
+  );
+
+  await assert.rejects(
+    () =>
+      updatePerformance({
+        cognitoId: 'cognito-123',
+        performanceId: 'performance-1',
+        sourceType: 'training',
+      }),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError);
+      assert.equal(error.name, ErrorName.PayloadValidation);
+      assert.equal(error.statusCode, 400);
+      assert.equal(
+        error.message,
+        'PayloadValidation: place is not allowed when sourceType is "training".',
+      );
+      return true;
+    },
+  );
+});
+
+test('updatePerformance throws PayloadValidation when merged splits count does not match distance and poolLength', async () => {
+  test.mock.method(
+    performanceRepository,
+    'getPerformanceById',
+    async () => ({
+      performanceId: 'performance-1',
+      profileId: 'cognito-123',
+      stroke: 'freestyle',
+      distance: 100,
+      poolLength: 25,
+      poolLengthUnit: 'meters',
+      timeMs: 60000,
+      splits: [15000, 15000, 15000, 15000],
+      performedAt: '2026-09-20',
+      sourceType: 'competition',
+      createdAt: '2026-05-27T00:00:00.000Z',
+      updatedAt: '2026-05-27T00:00:00.000Z',
+    }),
+  );
+
+  await assert.rejects(
+    () =>
+      updatePerformance({
+        cognitoId: 'cognito-123',
+        performanceId: 'performance-1',
+        poolLength: 50,
+      }),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError);
+      assert.equal(error.name, ErrorName.PayloadValidation);
+      assert.equal(error.statusCode, 400);
+      assert.equal(
+        error.message,
+        'PayloadValidation: splits must contain exactly 2 entries for distance 100 and poolLength 50.',
+      );
+      return true;
+    },
+  );
+});
+
+test('updatePerformance throws PayloadValidation when merged splits total does not match timeMs', async () => {
+  test.mock.method(
+    performanceRepository,
+    'getPerformanceById',
+    async () => ({
+      performanceId: 'performance-1',
+      profileId: 'cognito-123',
+      stroke: 'freestyle',
+      distance: 100,
+      poolLength: 25,
+      poolLengthUnit: 'meters',
+      timeMs: 60000,
+      splits: [15000, 15000, 15000, 15000],
+      performedAt: '2026-09-20',
+      sourceType: 'competition',
+      createdAt: '2026-05-27T00:00:00.000Z',
+      updatedAt: '2026-05-27T00:00:00.000Z',
+    }),
+  );
+
+  await assert.rejects(
+    () =>
+      updatePerformance({
+        cognitoId: 'cognito-123',
+        performanceId: 'performance-1',
+        timeMs: 59000,
+      }),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError);
+      assert.equal(error.name, ErrorName.PayloadValidation);
+      assert.equal(error.statusCode, 400);
+      assert.equal(
+        error.message,
+        'PayloadValidation: splits must sum exactly to timeMs 59000.',
+      );
+      return true;
+    },
+  );
+});
+
+test('updatePerformance throws PayloadValidation when merged stroke and distance are incompatible', async () => {
+  test.mock.method(
+    performanceRepository,
+    'getPerformanceById',
+    async () => ({
+      performanceId: 'performance-1',
+      profileId: 'cognito-123',
+      stroke: 'butterfly',
+      distance: 50,
+      poolLength: 25,
+      poolLengthUnit: 'meters',
+      timeMs: 32780,
+      splits: [16300, 16480],
+      performedAt: '2026-09-20',
+      sourceType: 'competition',
+      createdAt: '2026-05-27T00:00:00.000Z',
+      updatedAt: '2026-05-27T00:00:00.000Z',
+    }),
+  );
+
+  await assert.rejects(
+    () =>
+      updatePerformance({
+        cognitoId: 'cognito-123',
+        performanceId: 'performance-1',
+        distance: 400,
+      }),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError);
+      assert.equal(error.name, ErrorName.PayloadValidation);
+      assert.equal(error.statusCode, 400);
+      assert.equal(
+        error.message,
+        'PayloadValidation: distance 400 is not allowed for stroke "butterfly". Allowed distances: 25, 50, 100, 200.',
+      );
+      return true;
+    },
+  );
+});
+
+test('updatePerformance throws PayloadValidation when merged distance 25 and poolLength 50 are incompatible', async () => {
+  test.mock.method(
+    performanceRepository,
+    'getPerformanceById',
+    async () => ({
+      performanceId: 'performance-1',
+      profileId: 'cognito-123',
+      stroke: 'freestyle',
+      distance: 50,
+      poolLength: 25,
+      poolLengthUnit: 'meters',
+      timeMs: 32780,
+      splits: [16300, 16480],
+      performedAt: '2026-09-20',
+      sourceType: 'competition',
+      createdAt: '2026-05-27T00:00:00.000Z',
+      updatedAt: '2026-05-27T00:00:00.000Z',
+    }),
+  );
+
+  await assert.rejects(
+    () =>
+      updatePerformance({
+        cognitoId: 'cognito-123',
+        performanceId: 'performance-1',
+        distance: 25,
+        poolLength: 50,
+      }),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError);
+      assert.equal(error.name, ErrorName.PayloadValidation);
+      assert.equal(error.statusCode, 400);
+      assert.equal(
+        error.message,
+        'PayloadValidation: distance 25 is not allowed for poolLength 50. Distance 25 is only allowed when poolLength is 25.',
+      );
+      return true;
     },
   );
 });
@@ -215,10 +577,9 @@ test('deletePerformance deletes an existing performance', async () => {
       poolLength: 25,
       poolLengthUnit: 'meters',
       timeMs: 32780,
+      splits: [16300, 16480],
       performedAt: '2026-09-20',
       sourceType: 'competition',
-      effortLevel: 5,
-      notes: 'National tourney final heat',
       createdAt: '2026-05-27T00:00:00.000Z',
       updatedAt: '2026-05-27T00:00:00.000Z',
     }),

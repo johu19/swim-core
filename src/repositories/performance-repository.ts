@@ -6,19 +6,44 @@ import {
 } from '@aws-sdk/client-dynamodb';
 import { createDynamoClient } from '../lib/dynamo.js';
 import { getConfig } from '../lib/env.js';
+import {
+  getDistancePoolLengthValidationMessage,
+  getPlaceSourceTypeValidationMessage,
+  getSplitCountValidationMessage,
+  getSplitTotalValidationMessage,
+  getSplitValueValidationMessage,
+  getStrokeDistanceValidationMessage,
+  hasValidSplitCount,
+  hasValidSplitTotal,
+  hasValidSplitValues,
+  isPlaceAllowedForSourceType,
+  isDistanceAllowedForPoolLength,
+  isDistanceAllowedForStroke,
+  PerformanceDistance,
+  PerformanceSourceType,
+  PerformancePoolLength,
+  PerformanceSplit,
+  PerformanceStroke,
+} from '../validations/performance-fields.js';
+
+type PerformanceItemAttribute = {
+  S?: string;
+  N?: string;
+  L?: PerformanceItemAttribute[];
+};
 
 export type PerformanceRecord = {
   performanceId: string;
   profileId: string;
-  stroke: 'butterfly' | 'backstroke' | 'breaststroke' | 'freestyle';
-  distance: 25 | 50 | 100 | 200 | 400 | 800 | 1500;
-  poolLength: 25 | 50;
+  stroke: PerformanceStroke;
+  distance: PerformanceDistance;
+  poolLength: PerformancePoolLength;
   poolLengthUnit: 'yards' | 'meters';
   timeMs: number;
+  place?: number;
+  splits?: PerformanceSplit[];
   performedAt: string;
-  sourceType: 'competition' | 'training';
-  effortLevel: 1 | 2 | 3 | 4 | 5;
-  notes: string;
+  sourceType: PerformanceSourceType;
   createdAt: string;
   updatedAt: string;
 };
@@ -34,7 +59,7 @@ function getPerformanceKeys(
 }
 
 function mapItemToPerformanceRecord(
-  item: Record<string, { S?: string; N?: string }> | undefined,
+  item: Record<string, PerformanceItemAttribute> | undefined,
 ): PerformanceRecord | null {
   if (!item) {
     return null;
@@ -47,10 +72,10 @@ function mapItemToPerformanceRecord(
   const poolLength = item.poolLength?.N;
   const poolLengthUnit = item.poolLengthUnit?.S;
   const timeMs = item.timeMs?.N;
+  const place = item.place?.N;
+  const splits = item.splits?.L;
   const performedAt = item.performedAt?.S;
   const sourceType = item.sourceType?.S;
-  const effortLevel = item.effortLevel?.N;
-  const notes = item.notes?.S;
   const createdAt = item.createdAt?.S;
   const updatedAt = item.updatedAt?.S;
 
@@ -64,8 +89,6 @@ function mapItemToPerformanceRecord(
     !timeMs ||
     !performedAt ||
     !sourceType ||
-    !effortLevel ||
-    notes === undefined ||
     !createdAt ||
     !updatedAt
   ) {
@@ -78,7 +101,8 @@ function mapItemToPerformanceRecord(
     stroke !== 'butterfly' &&
     stroke !== 'backstroke' &&
     stroke !== 'breaststroke' &&
-    stroke !== 'freestyle'
+    stroke !== 'freestyle' &&
+    stroke !== 'medley'
   ) {
     throw new Error(`Performance item has unsupported stroke value "${stroke}".`);
   }
@@ -95,18 +119,71 @@ function mapItemToPerformanceRecord(
     );
   }
 
+  const parsedDistance = Number(distance) as PerformanceDistance;
+  const parsedPoolLength = Number(poolLength) as PerformancePoolLength;
+  const parsedTimeMs = Number(timeMs);
+  const parsedPlace = place !== undefined ? Number(place) : undefined;
+  const parsedSplits = splits?.map((split) => {
+    if (!split.N) {
+      throw new Error('Performance item has invalid split value.');
+    }
+
+    return Number(split.N);
+  });
+
+  if (!isDistanceAllowedForStroke(stroke, parsedDistance)) {
+    throw new Error(getStrokeDistanceValidationMessage(stroke, parsedDistance));
+  }
+
+  if (!isDistanceAllowedForPoolLength(parsedDistance, parsedPoolLength)) {
+    throw new Error(
+      getDistancePoolLengthValidationMessage(parsedDistance, parsedPoolLength),
+    );
+  }
+
+  if (
+    parsedPlace !== undefined &&
+    (!Number.isInteger(parsedPlace) || parsedPlace < 1)
+  ) {
+    throw new Error('Performance item has invalid place value.');
+  }
+
+  if (!isPlaceAllowedForSourceType(sourceType, parsedPlace)) {
+    throw new Error(getPlaceSourceTypeValidationMessage(sourceType));
+  }
+
+  if (
+    parsedSplits !== undefined &&
+    !hasValidSplitValues(parsedSplits)
+  ) {
+    throw new Error(getSplitValueValidationMessage());
+  }
+
+  if (
+    parsedSplits !== undefined &&
+    !hasValidSplitCount(parsedSplits, parsedDistance, parsedPoolLength)
+  ) {
+    throw new Error(
+      getSplitCountValidationMessage(parsedDistance, parsedPoolLength),
+    );
+  }
+
+  if (parsedSplits !== undefined && !hasValidSplitTotal(parsedSplits, parsedTimeMs)) {
+    throw new Error(getSplitTotalValidationMessage(parsedTimeMs));
+  }
+
   return {
     performanceId,
     profileId,
     stroke,
-    distance: Number(distance) as PerformanceRecord['distance'],
-    poolLength: Number(poolLength) as PerformanceRecord['poolLength'],
+    distance: parsedDistance,
+    poolLength: parsedPoolLength,
     poolLengthUnit,
-    timeMs: Number(timeMs),
+    timeMs: parsedTimeMs,
+    place: parsedPlace,
+    splits: parsedSplits,
     performedAt,
     sourceType,
-    effortLevel: Number(effortLevel) as PerformanceRecord['effortLevel'],
-    notes,
     createdAt,
     updatedAt,
   };
@@ -128,10 +205,18 @@ function mapPerformanceRecordToItem(performance: PerformanceRecord) {
     poolLength: { N: String(performance.poolLength) },
     poolLengthUnit: { S: performance.poolLengthUnit },
     timeMs: { N: String(performance.timeMs) },
+    ...(performance.place !== undefined
+      ? { place: { N: String(performance.place) } }
+      : {}),
+    ...(performance.splits !== undefined
+      ? {
+          splits: {
+            L: performance.splits.map((split) => ({ N: String(split) })),
+          },
+        }
+      : {}),
     performedAt: { S: performance.performedAt },
     sourceType: { S: performance.sourceType },
-    effortLevel: { N: String(performance.effortLevel) },
-    notes: { S: performance.notes },
     createdAt: { S: performance.createdAt },
     updatedAt: { S: performance.updatedAt },
   };
@@ -170,7 +255,7 @@ export async function getPerformanceById(
   );
 
   return mapItemToPerformanceRecord(
-    response.Item as Record<string, { S?: string; N?: string }> | undefined,
+    response.Item as Record<string, PerformanceItemAttribute> | undefined,
   );
 }
 
@@ -211,7 +296,7 @@ export async function getPerformancesByProfileId(profileId: string) {
   const performances = (response.Items ?? [])
     .map((item) =>
       mapItemToPerformanceRecord(
-        item as Record<string, { S?: string; N?: string }>,
+        item as Record<string, PerformanceItemAttribute>,
       ),
     )
     .filter((item): item is PerformanceRecord => item !== null);

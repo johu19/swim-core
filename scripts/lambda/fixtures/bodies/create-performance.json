@@ -4,8 +4,8 @@
   "poolLength": 25,
   "poolLengthUnit": "meters",
   "timeMs": 239000,
+  "place": 1,
+  "splits": [60000, 59500, 59750, 59750],
   "performedAt": "2026-09-20",
-  "sourceType": "competition",
-  "effortLevel": 5,
-  "notes": "National tourney final heat backstroke"
+  "sourceType": "competition"
 }

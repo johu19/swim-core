@@ -16,6 +16,7 @@ test('getOrCreateProfile returns the stored profile when one already exists', as
   test.mock.method(profileRepository, 'getProfileById', async () => ({
     profileId: 'cognito-123',
     email: 'jose@example.com',
+    favStroke: 'freestyle',
     createdAt: '2026-05-27T00:00:00.000Z',
     updatedAt: '2026-05-27T00:00:00.000Z',
   }));
@@ -25,6 +26,7 @@ test('getOrCreateProfile returns the stored profile when one already exists', as
   assert.deepEqual(result, {
     profileId: 'cognito-123',
     email: 'jose@example.com',
+    favStroke: 'freestyle',
     createdAt: '2026-05-27T00:00:00.000Z',
     updatedAt: '2026-05-27T00:00:00.000Z',
   });
@@ -84,6 +86,7 @@ test('updateProfile updates only the provided fields', async () => {
   const result = await updateProfile({
     cognitoId: 'cognito-123',
     lastName: 'Galvis',
+    favStroke: 'medley',
     teamName: 'Acuacol',
   });
 
@@ -99,6 +102,7 @@ test('updateProfile updates only the provided fields', async () => {
       email: 'jose@example.com',
       firstName: 'Jose',
       lastName: 'Galvis',
+      favStroke: 'medley',
       teamName: 'Acuacol',
       createdAt: '2026-05-27T00:00:00.000Z',
       updatedAt: 'string',

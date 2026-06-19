@@ -1,6 +1,7 @@
 import { GetItemCommand, PutItemCommand } from '@aws-sdk/client-dynamodb';
 import { createDynamoClient } from '../lib/dynamo.js';
 import { getConfig } from '../lib/env.js';
+import { PerformanceStroke } from '../validations/performance-fields.js';
 
 export type ProfileRecord = {
   profileId: string;
@@ -9,6 +10,7 @@ export type ProfileRecord = {
   lastName?: string;
   birthDate?: string;
   gender?: 'male' | 'female';
+  favStroke?: PerformanceStroke;
   teamName?: string;
   createdAt: string;
   updatedAt: string;
@@ -34,6 +36,7 @@ function mapItemToProfileRecord(
   const lastName = item.lastName?.S;
   const birthDate = item.birthDate?.S;
   const gender = item.gender?.S;
+  const favStroke = item.favStroke?.S;
   const teamName = item.teamName?.S;
   const createdAt = item.createdAt?.S;
   const updatedAt = item.updatedAt?.S;
@@ -46,6 +49,19 @@ function mapItemToProfileRecord(
     throw new Error(`Profile item has unsupported gender value "${gender}".`);
   }
 
+  if (
+    favStroke &&
+    favStroke !== 'butterfly' &&
+    favStroke !== 'backstroke' &&
+    favStroke !== 'breaststroke' &&
+    favStroke !== 'freestyle' &&
+    favStroke !== 'medley'
+  ) {
+    throw new Error(
+      `Profile item has unsupported favStroke value "${favStroke}".`,
+    );
+  }
+
   return {
     profileId,
     email,
@@ -53,6 +69,7 @@ function mapItemToProfileRecord(
     lastName,
     birthDate,
     gender: gender as ProfileRecord['gender'],
+    favStroke: favStroke as ProfileRecord['favStroke'],
     teamName,
     createdAt,
     updatedAt,
@@ -69,6 +86,7 @@ function mapProfileRecordToItem(profile: ProfileRecord) {
     ...(profile.lastName ? { lastName: { S: profile.lastName } } : {}),
     ...(profile.birthDate ? { birthDate: { S: profile.birthDate } } : {}),
     ...(profile.gender ? { gender: { S: profile.gender } } : {}),
+    ...(profile.favStroke ? { favStroke: { S: profile.favStroke } } : {}),
     ...(profile.teamName ? { teamName: { S: profile.teamName } } : {}),
     createdAt: { S: profile.createdAt },
     updatedAt: { S: profile.updatedAt },

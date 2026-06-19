@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { performanceStrokeSchema } from './performance-fields.js';
 
 export const patchProfileBodySchema = z
   .object({
@@ -6,6 +7,7 @@ export const patchProfileBodySchema = z
     lastName: z.string().trim().min(1).optional(),
     birthDate: z.iso.date().optional(),
     gender: z.enum(['male', 'female']).optional(),
+    favStroke: performanceStrokeSchema.optional(),
     teamName: z.string().trim().min(1).optional(),
   })
   .refine((body) => Object.keys(body).length > 0, {
